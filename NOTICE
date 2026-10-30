@@ -1,0 +1,7 @@
+wechat-bot
+Copyright 2026 wtrblck and contributors
+
+This distribution includes selected database and media reader modules from
+fanyuantaier/wechatauto-replica, licensed under the Apache License, Version 2.0.
+Their license is retained in weixin-research/vendor/wechatauto/LICENSE.
+Other installed third-party packages retain their respective licenses.

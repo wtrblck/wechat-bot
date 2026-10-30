@@ -1,0 +1,8 @@
+# Install with: py -3.14 -m pip install --target deps -r requirements-media.txt
+# FFmpeg executable is bundled in the Windows wheel, used for wxgf/HEVC,
+# optional MP3 audio conversion and optional non-MP4 video conversion.
+imageio-ffmpeg==0.6.0
+# Image validation/normalisation (PNG/JPEG/GIF/WebP) and emoji decoding.
+Pillow>=11
+# V2 image and emoji resource AES-128-CBC decryption.
+cryptography>=42

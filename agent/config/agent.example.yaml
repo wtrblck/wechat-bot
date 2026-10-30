@@ -1,0 +1,73 @@
+account:
+  key: personal-wechat
+  selfId: REPLACE_LOCALLY
+  bridgeEpoch: source-1
+bridge:
+  sessionFile: ../weixin-research/runs/bridge/session.json
+  pollMs: 1000
+  requestStoreContinuity: manual
+access:
+  owners: []
+  prefix: '/ai '
+  direct:
+    allow: []
+    trigger: prefix
+  group:
+    allow: []
+    trigger: autonomous
+runtime:
+  engine: dsh
+  provider: REPLACE_WITH_CONFIGURED_PROVIDER
+  model: REPLACE_WITH_CONFIGURED_MODEL
+  preset: assistant
+  recentMessages: 200
+  chatContextBytes: 196608
+memory:
+  enabled: true
+  batchMessages: 100
+  priorityMessages: 150
+  intervalSeconds: 600
+  idleSeconds: 180
+  lowTrafficSeconds: 1800
+  minMessages: 10
+  maxCallsPerHour: 60
+  summaryMaxChars: 1000
+  inputBytes: 65536
+  retrieval:
+    pageSize: 3
+    maxSegments: 12
+    historyBatchSize: 20
+    maxHistoryBatches: 4
+    timeoutMs: 15000
+    maxBytes: 32768
+    maxTokens: 8000
+prompts:
+  profile: default
+promptProfiles:
+  default:
+    persona: prompts/personas/default.md
+conversationOverrides:
+  groups: {}
+  contacts: {}
+media:
+  enabled: true
+  maxImagesPerReply: 6
+sandbox:
+  directory: data/sandbox
+egress:
+  sendArtifacts: true
+externalAccess:
+  enabled: false
+  timeoutSeconds: 120
+  maxFileMiB: 10
+# To enable externalAccess, set approver to an existing allowed private contact.
+web:
+  fetch: true
+  search: true
+budget:
+  enabled: true
+  dailyLimitCny: 5
+  timeZone: Asia/Shanghai
+  resumeAtMidnight: true
+  pricingFile: config/pricing.deepseek.2026-10-29.json
+  maxPricingAgeDays: 30

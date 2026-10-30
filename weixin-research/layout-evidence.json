@@ -1,0 +1,243 @@
+{
+  "sha256": "e0428a7b691853de496532523c2c09aa095f90941c37c9f4cfb3f137f3c66556",
+  "claims": [
+    {
+      "name": "text_input_pair",
+      "observation": "RDX is saved in RBX; two string-shaped values at RDX+0 and RDX+0x20 feed the object. R8 is a separate input.",
+      "source": "text-send.asm",
+      "status": "static-only",
+      "evidence": [
+        {
+          "rva": "0x55f03b4",
+          "bytes": "4c 89 c6",
+          "instruction": "mov    rsi,r8"
+        },
+        {
+          "rva": "0x55f03b7",
+          "bytes": "48 89 d3",
+          "instruction": "mov    rbx,rdx"
+        },
+        {
+          "rva": "0x55f04c7",
+          "bytes": "4c 8d 4b 20",
+          "instruction": "lea    r9,[rbx+0x20]"
+        },
+        {
+          "rva": "0x55f04d7",
+          "bytes": "4c 8b 7b 30",
+          "instruction": "mov    r15,QWORD PTR [rbx+0x30]"
+        },
+        {
+          "rva": "0x55f04db",
+          "bytes": "48 83 7b 38 10",
+          "instruction": "cmp    QWORD PTR [rbx+0x38],0x10"
+        },
+        {
+          "rva": "0x55f07ec",
+          "bytes": "4c 8b 7b 10",
+          "instruction": "mov    r15,QWORD PTR [rbx+0x10]"
+        },
+        {
+          "rva": "0x55f07f0",
+          "bytes": "48 83 7b 18 10",
+          "instruction": "cmp    QWORD PTR [rbx+0x18],0x10"
+        }
+      ]
+    },
+    {
+      "name": "message_fields",
+      "observation": "Native object writes +0x118=1; string-shaped fields +0xB0 and +0x758 have lengths at +0xC0 and +0x768. Business meanings unverified.",
+      "source": "text-send.asm",
+      "status": "static-only",
+      "evidence": [
+        {
+          "rva": "0x55f04bd",
+          "bytes": "c7 80 18 01 00 00 01",
+          "instruction": "mov    DWORD PTR [rax+0x118],0x1"
+        },
+        {
+          "rva": "0x55f04cb",
+          "bytes": "4c 8d b0 58 07 00 00",
+          "instruction": "lea    r14,[rax+0x758]"
+        },
+        {
+          "rva": "0x55f0509",
+          "bytes": "4c 8d b0 b0 00 00 00",
+          "instruction": "lea    r14,[rax+0xb0]"
+        },
+        {
+          "rva": "0x55f07bf",
+          "bytes": "4c 89 b8 68 07 00 00",
+          "instruction": "mov    QWORD PTR [rax+0x768],r15"
+        },
+        {
+          "rva": "0x55f0820",
+          "bytes": "4c 89 b8 c0 00 00 00",
+          "instruction": "mov    QWORD PTR [rax+0xc0],r15"
+        }
+      ]
+    },
+    {
+      "name": "factory_ownership",
+      "observation": "Allocation is 0x7A8, object begins at allocation+0x10, zeroed size 0x798, constructor RVA 0x77AB70. Output pair stores object and control block.",
+      "source": "message-factory.asm",
+      "status": "static-only",
+      "evidence": [
+        {
+          "rva": "0x709178",
+          "bytes": "b9 a8 07 00 00",
+          "instruction": "mov    ecx,0x7a8"
+        },
+        {
+          "rva": "0x70918c",
+          "bytes": "48 89 48 08",
+          "instruction": "mov    QWORD PTR [rax+0x8],rcx"
+        },
+        {
+          "rva": "0x70919e",
+          "bytes": "48 8d 78 10",
+          "instruction": "lea    rdi,[rax+0x10]"
+        },
+        {
+          "rva": "0x7091a2",
+          "bytes": "41 b8 98 07 00 00",
+          "instruction": "mov    r8d,0x798"
+        },
+        {
+          "rva": "0x7091b6",
+          "bytes": "e8 b5 19 07 00",
+          "instruction": "call   0x18077ab70"
+        },
+        {
+          "rva": "0x7091bc",
+          "bytes": "48 89 3e",
+          "instruction": "mov    QWORD PTR [rsi],rdi"
+        },
+        {
+          "rva": "0x7091c3",
+          "bytes": "48 89 5e 08",
+          "instruction": "mov    QWORD PTR [rsi+0x8],rbx"
+        }
+      ]
+    },
+    {
+      "name": "sync_input_vector",
+      "observation": "RCX supplies begin/end. Count uses (end-begin)>>4 then inverse-of-7 multiplication, consistent with 0x70-byte input elements.",
+      "source": "sync-process.asm",
+      "status": "static-only",
+      "evidence": [
+        {
+          "rva": "0x2ebb79a",
+          "bytes": "48 89 ce",
+          "instruction": "mov    rsi,rcx"
+        },
+        {
+          "rva": "0x2ebb7d1",
+          "bytes": "4c 8b 71 08",
+          "instruction": "mov    r14,QWORD PTR [rcx+0x8]"
+        },
+        {
+          "rva": "0x2ebb7d5",
+          "bytes": "4c 2b 31",
+          "instruction": "sub    r14,QWORD PTR [rcx]"
+        },
+        {
+          "rva": "0x2ebb7df",
+          "bytes": "49 c1 fe 04",
+          "instruction": "sar    r14,0x4"
+        },
+        {
+          "rva": "0x2ebb7e3",
+          "bytes": "48 bf b7 6d db b6 6d",
+          "instruction": "movabs rdi,0x6db6db6db6db6db7"
+        },
+        {
+          "rva": "0x2ebb7ed",
+          "bytes": "4c 0f af f7",
+          "instruction": "imul   r14,rdi"
+        }
+      ]
+    },
+    {
+      "name": "sync_intermediate_vector",
+      "observation": "Conversion RVA 0x2EBC830 fills a local vector; subsequent iteration advances 0x78 bytes. Do not reuse input stride.",
+      "source": "sync-process.asm",
+      "status": "static-only",
+      "evidence": [
+        {
+          "rva": "0x2ebb8a0",
+          "bytes": "48 8d 8d e0 02 00 00",
+          "instruction": "lea    rcx,[rbp+0x2e0]"
+        },
+        {
+          "rva": "0x2ebb8aa",
+          "bytes": "44 0f b6 85 27 03 00",
+          "instruction": "movzx  r8d,BYTE PTR [rbp+0x327]"
+        },
+        {
+          "rva": "0x2ebb8b2",
+          "bytes": "e8 79 0f 00 00",
+          "instruction": "call   0x182ebc830"
+        },
+        {
+          "rva": "0x2ebb8b8",
+          "bytes": "48 8b 8d e0 02 00 00",
+          "instruction": "mov    rcx,QWORD PTR [rbp+0x2e0]"
+        },
+        {
+          "rva": "0x2ebb8bf",
+          "bytes": "48 8b 95 e8 02 00 00",
+          "instruction": "mov    rdx,QWORD PTR [rbp+0x2e8]"
+        },
+        {
+          "rva": "0x2ebb96f",
+          "bytes": "48 83 c7 78",
+          "instruction": "add    rdi,0x78"
+        }
+      ]
+    },
+    {
+      "name": "database_input_vector",
+      "observation": "R8 supplies begin/end; main iteration advances 0x2E8 bytes. This is distinct from both sync vectors and the 0x798 native object.",
+      "source": "sync-database.asm",
+      "status": "static-only",
+      "evidence": [
+        {
+          "rva": "0x38e9fc6",
+          "bytes": "49 8b 00",
+          "instruction": "mov    rax,QWORD PTR [r8]"
+        },
+        {
+          "rva": "0x38e9fc9",
+          "bytes": "49 3b 40 08",
+          "instruction": "cmp    rax,QWORD PTR [r8+0x8]"
+        },
+        {
+          "rva": "0x38e9fd3",
+          "bytes": "4c 89 c6",
+          "instruction": "mov    rsi,r8"
+        },
+        {
+          "rva": "0x38ea27d",
+          "bytes": "48 8b 3e",
+          "instruction": "mov    rdi,QWORD PTR [rsi]"
+        },
+        {
+          "rva": "0x38ea287",
+          "bytes": "4c 8b 6e 08",
+          "instruction": "mov    r13,QWORD PTR [rsi+0x8]"
+        },
+        {
+          "rva": "0x38ea2b9",
+          "bytes": "48 81 c7 e8 02 00 00",
+          "instruction": "add    rdi,0x2e8"
+        },
+        {
+          "rva": "0x38ea31d",
+          "bytes": "48 81 c7 e8 02 00 00",
+          "instruction": "add    rdi,0x2e8"
+        }
+      ]
+    }
+  ]
+}

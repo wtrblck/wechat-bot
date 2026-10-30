@@ -1,0 +1,48 @@
+{
+  "version": "4.1.15.56",
+  "process": "Weixin.exe",
+  "module": "Weixin.dll",
+  "dll": "E:/Tencent/Weixin/4.1.15.56/Weixin.dll",
+  "sha256": "e0428a7b691853de496532523c2c09aa095f90941c37c9f4cfb3f137f3c66556",
+  "sites": {
+    "text_send_candidate": "0x55f0380",
+    "send_stage_candidate_a": "0x1808560",
+    "send_stage_candidate_b": "0x180c810",
+    "sync_process_candidate": "0x2ebb760",
+    "sync_database_candidate": "0x38e9f80"
+  },
+  "send": {
+    "context": "0x47220",
+    "core": "0x3823d0",
+    "manager": "0x709280",
+    "text_factory": "0x709160",
+    "send": "0x17a3b60",
+    "image": "0x2c18040",
+    "image_factory": "0x1d81600",
+    "file_factory": "0x2c1b980",
+    "video_factory": "0x2fa7980",
+    "voice_factory": "0x6cd09b0",
+    "string_destroy": "0x2010",
+    "narrow_assign": "0x1f9ad0",
+    "wide_assign": "0x9b5e0",
+    "thread_checkpoint": "0x4a1fd0",
+    "emoji_factory": "0x1c12a00",
+    "emoji_construct": "0x20a2800",
+    "emoji_new": "0x754bcdc"
+  },
+  "download": {
+    "context": "0x47220",
+    "core": "0x3823d0",
+    "manager": "0x709280",
+    "query": "0x17b9b90",
+    "copy": "0xa85ba0",
+    "download": "0x1813980",
+    "conversation": "0xa82300",
+    "thread_checkpoint": "0x4a1fd0"
+  },
+  "emoji": {
+    "control_vtable": "0x908aa98"
+  },
+  "download_result_vtable": "0x928c3d8",
+  "notes": "Offsets are valid only for this SHA256. New versions need a new file and fresh verification; never reuse these numbers across versions."
+}

@@ -1,0 +1,7 @@
+# Example only. Credentials stay in the environment; provider/model are selected
+# in config/agent.local.yaml. Other dsh providers can be mounted instead.
+- insert:
+    - id: llm-deepseek
+      name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+      config:
+        apiKeyEnv: DEEPSEEK_API_KEY

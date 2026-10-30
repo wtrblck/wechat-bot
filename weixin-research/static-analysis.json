@@ -1,0 +1,1959 @@
+{
+  "file": "E:\\Tencent\\Weixin\\4.1.15.56\\Weixin.dll",
+  "size": 204305968,
+  "sha256": "e0428a7b691853de496532523c2c09aa095f90941c37c9f4cfb3f137f3c66556",
+  "machine": "0x8664",
+  "image_base": "0x180000000",
+  "sections": [
+    {
+      "name": ".text",
+      "virtual_size": 124895479,
+      "rva": 4096,
+      "size": 124895744,
+      "raw": 1024,
+      "flags": 1610612768
+    },
+    {
+      "name": ".rdata",
+      "virtual_size": 62397624,
+      "rva": 124903424,
+      "size": 62397952,
+      "raw": 124896768,
+      "flags": 1073741888
+    },
+    {
+      "name": ".data",
+      "virtual_size": 9855464,
+      "rva": 187301888,
+      "size": 9382912,
+      "raw": 187294720,
+      "flags": 3221225536
+    },
+    {
+      "name": ".pdata",
+      "virtual_size": 6166644,
+      "rva": 197160960,
+      "size": 6167040,
+      "raw": 196677632,
+      "flags": 1073741888
+    },
+    {
+      "name": ".gxfg",
+      "virtual_size": 16032,
+      "rva": 203329536,
+      "size": 16384,
+      "raw": 202844672,
+      "flags": 1073741888
+    },
+    {
+      "name": ".qtmetad",
+      "virtual_size": 749,
+      "rva": 203345920,
+      "size": 1024,
+      "raw": 202861056,
+      "flags": 1073741888
+    },
+    {
+      "name": ".qtmimed",
+      "virtual_size": 336838,
+      "rva": 203350016,
+      "size": 336896,
+      "raw": 202862080,
+      "flags": 1073741888
+    },
+    {
+      "name": ".tls",
+      "virtual_size": 6781,
+      "rva": 203689984,
+      "size": 7168,
+      "raw": 203198976,
+      "flags": 3221225536
+    },
+    {
+      "name": "_RDATA",
+      "virtual_size": 500,
+      "rva": 203698176,
+      "size": 512,
+      "raw": 203206144,
+      "flags": 1073741888
+    },
+    {
+      "name": "malloc_h",
+      "virtual_size": 398,
+      "rva": 203702272,
+      "size": 512,
+      "raw": 203206656,
+      "flags": 1610612768
+    },
+    {
+      "name": ".rsrc",
+      "virtual_size": 114148,
+      "rva": 203706368,
+      "size": 114176,
+      "raw": 203207168,
+      "flags": 1073741888
+    },
+    {
+      "name": ".reloc",
+      "virtual_size": 973688,
+      "rva": 203821056,
+      "size": 973824,
+      "raw": 203321344,
+      "flags": 1107296320
+    }
+  ],
+  "runtime_function_count": 513887,
+  "string_anchors": [
+    {
+      "text": "fromnewmsgid",
+      "file": "0x8f6fde8",
+      "rva": "0x8f717e8",
+      "refs": [
+        {
+          "rva": "0x1b8820",
+          "function": null
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "notification_messages",
+      "file": "0x906dcc8",
+      "rva": "0x906f6c8",
+      "refs": [
+        {
+          "rva": "0x90eb8d",
+          "function": {
+            "begin": "0x90ea30",
+            "end": "0x90ee87"
+          }
+        },
+        {
+          "rva": "0xbca664",
+          "function": {
+            "begin": "0xbc9020",
+            "end": "0xbcbb50"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "overwrite_newmsgid",
+      "file": "0x90a9a20",
+      "rva": "0x90ab420",
+      "refs": [
+        {
+          "rva": "0xad97b5",
+          "function": {
+            "begin": "0xad8d40",
+            "end": "0xada76a"
+          }
+        },
+        {
+          "rva": "0xadcd60",
+          "function": {
+            "begin": "0xadb260",
+            "end": "0xae169b"
+          }
+        },
+        {
+          "rva": "0x3a4bc9d",
+          "function": {
+            "begin": "0x3a4b410",
+            "end": "0x3a4c7ff"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "wxid_sample_02",
+      "file": "0x90cf710",
+      "rva": "0x90d1110",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "MessageManager",
+      "file": "0x9160ad8",
+      "rva": "0x91624d8",
+      "refs": [
+        {
+          "rva": "0xeb0b78",
+          "function": {
+            "begin": "0xeb06d0",
+            "end": "0xeb3347"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "MessageService",
+      "file": "0x9160ee0",
+      "rva": "0x91628e0",
+      "refs": [
+        {
+          "rva": "0xeb785e",
+          "function": {
+            "begin": "0xeb7580",
+            "end": "0xeb8f3e"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "FMessageService",
+      "file": "0x9160f80",
+      "rva": "0x9162980",
+      "refs": [
+        {
+          "rva": "0xeb81f7",
+          "function": {
+            "begin": "0xeb7580",
+            "end": "0xeb8f3e"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessage",
+      "file": "0x9200090",
+      "rva": "0x9201a90",
+      "refs": [
+        {
+          "rva": "0x155c491",
+          "function": {
+            "begin": "0x155c3c0",
+            "end": "0x155cdcb"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessage with:",
+      "file": "0x92000a8",
+      "rva": "0x9201aa8",
+      "refs": [
+        {
+          "rva": "0x155c81b",
+          "function": {
+            "begin": "0x155c3c0",
+            "end": "0x155cdcb"
+          }
+        },
+        {
+          "rva": "0x155cb74",
+          "function": {
+            "begin": "0x155c3c0",
+            "end": "0x155cdcb"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageList with session",
+      "file": "0x92000c0",
+      "rva": "0x9201ac0",
+      "refs": [
+        {
+          "rva": "0x155d80a",
+          "function": {
+            "begin": "0x155d730",
+            "end": "0x155e6d3"
+          }
+        },
+        {
+          "rva": "0x155da66",
+          "function": {
+            "begin": "0x155d730",
+            "end": "0x155e6d3"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageList with session: getusername",
+      "file": "0x92000e0",
+      "rva": "0x9201ae0",
+      "refs": [
+        {
+          "rva": "0x155dbaa",
+          "function": {
+            "begin": "0x155d730",
+            "end": "0x155e6d3"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageList with session: username2id",
+      "file": "0x9200110",
+      "rva": "0x9201b10",
+      "refs": [
+        {
+          "rva": "0x155dc2b",
+          "function": {
+            "begin": "0x155d730",
+            "end": "0x155e6d3"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageList with session: create table",
+      "file": "0x9200140",
+      "rva": "0x9201b40",
+      "refs": [
+        {
+          "rva": "0x155dc59",
+          "function": {
+            "begin": "0x155d730",
+            "end": "0x155e6d3"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageList with session:",
+      "file": "0x9200198",
+      "rva": "0x9201b98",
+      "refs": [
+        {
+          "rva": "0x155e383",
+          "function": {
+            "begin": "0x155d730",
+            "end": "0x155e6d3"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageMap",
+      "file": "0x92001b8",
+      "rva": "0x9201bb8",
+      "refs": [
+        {
+          "rva": "0x155ee43",
+          "function": {
+            "begin": "0x155ed60",
+            "end": "0x1560925"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageMap: getusername",
+      "file": "0x92001c8",
+      "rva": "0x9201bc8",
+      "refs": [
+        {
+          "rva": "0x155f3cd",
+          "function": {
+            "begin": "0x155ed60",
+            "end": "0x1560925"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageMap: username2id",
+      "file": "0x92001e8",
+      "rva": "0x9201be8",
+      "refs": [
+        {
+          "rva": "0x155f44d",
+          "function": {
+            "begin": "0x155ed60",
+            "end": "0x1560925"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageMap: create table",
+      "file": "0x9200208",
+      "rva": "0x9201c08",
+      "refs": [
+        {
+          "rva": "0x155f90a",
+          "function": {
+            "begin": "0x155ed60",
+            "end": "0x1560925"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageMap with session count:",
+      "file": "0x9200238",
+      "rva": "0x9201c38",
+      "refs": [
+        {
+          "rva": "0x1560281",
+          "function": {
+            "begin": "0x155ed60",
+            "end": "0x1560925"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "GetSessionMessageList",
+      "file": "0x9201f40",
+      "rva": "0x9203940",
+      "refs": [
+        {
+          "rva": "0x15b2ed5",
+          "function": {
+            "begin": "0x15b2de0",
+            "end": "0x15b5b81"
+          }
+        },
+        {
+          "rva": "0x15b2f03",
+          "function": {
+            "begin": "0x15b2de0",
+            "end": "0x15b5b81"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "GetSessionMessageList for:",
+      "file": "0x9201f98",
+      "rva": "0x9203998",
+      "refs": [
+        {
+          "rva": "0x15b5287",
+          "function": {
+            "begin": "0x15b2de0",
+            "end": "0x15b5b81"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoAddMessageListToDB session:",
+      "file": "0x92ab380",
+      "rva": "0x92acd80",
+      "refs": [
+        {
+          "rva": "0x17b33db",
+          "function": {
+            "begin": "0x17b1970",
+            "end": "0x17b4d76"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "SaveSendMessagesAtOnce",
+      "file": "0x92ab3b8",
+      "rva": "0x92acdb8",
+      "refs": [
+        {
+          "rva": "0x17b4822",
+          "function": {
+            "begin": "0x17b1970",
+            "end": "0x17b4d76"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "newmsgid",
+      "file": "0x92ab528",
+      "rva": "0x92acf28",
+      "refs": [
+        {
+          "rva": "0x17dba72",
+          "function": {
+            "begin": "0x17db510",
+            "end": "0x17dc514"
+          }
+        },
+        {
+          "rva": "0x17ddf2c",
+          "function": {
+            "begin": "0x17dd680",
+            "end": "0x17de0fc"
+          }
+        },
+        {
+          "rva": "0x17de9fe",
+          "function": {
+            "begin": "0x17de610",
+            "end": "0x17df134"
+          }
+        },
+        {
+          "rva": "0x230c110",
+          "function": {
+            "begin": "0x230b9a0",
+            "end": "0x230c5ea"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "SendMsgFailed",
+      "file": "0x92ab5e8",
+      "rva": "0x92acfe8",
+      "refs": [
+        {
+          "rva": "0x17ddc96",
+          "function": {
+            "begin": "0x17dd680",
+            "end": "0x17de0fc"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "Begin StartSendMessageSyncStage",
+      "file": "0x92ab7e0",
+      "rva": "0x92ad1e0",
+      "refs": [
+        {
+          "rva": "0x180861f",
+          "function": {
+            "begin": "0x1808560",
+            "end": "0x18096aa"
+          }
+        },
+        {
+          "rva": "0x1808657",
+          "function": {
+            "begin": "0x1808560",
+            "end": "0x18096aa"
+          }
+        },
+        {
+          "rva": "0x180c8b2",
+          "function": {
+            "begin": "0x180c810",
+            "end": "0x180d21f"
+          }
+        },
+        {
+          "rva": "0x180c8e1",
+          "function": {
+            "begin": "0x180c810",
+            "end": "0x180d21f"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "GetAddSendMessageToDb",
+      "file": "0x92ab800",
+      "rva": "0x92ad200",
+      "refs": [
+        {
+          "rva": "0x18087d4",
+          "function": {
+            "begin": "0x1808560",
+            "end": "0x18096aa"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "EmoticonMessageSendSource",
+      "file": "0x92fc950",
+      "rva": "0x92fe350",
+      "refs": [
+        {
+          "rva": "0x1a9af10",
+          "function": {
+            "begin": "0x1a9adb0",
+            "end": "0x1a9af3d"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "sendEmotionMessage",
+      "file": "0x93d9850",
+      "rva": "0x93db250",
+      "refs": [
+        {
+          "rva": "0x205e43d",
+          "function": {
+            "begin": "0x205e410",
+            "end": "0x205e45a"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "card_with_buttontext_card_with_bsend_msg_confirmtimed_send_msg_cadge",
+      "file": "0x941d880",
+      "rva": "0x941f280",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "send_msg_confirm_new",
+      "file": "0x941dc60",
+      "rva": "0x941f660",
+      "refs": [
+        {
+          "rva": "0x22648ac",
+          "function": {
+            "begin": "0x2264450",
+            "end": "0x2264ac7"
+          }
+        },
+        {
+          "rva": "0x22652e3",
+          "function": {
+            "begin": "0x2265180",
+            "end": "0x2265391"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "micromsg.MMListenMentionMessage",
+      "file": "0x9443f58",
+      "rva": "0x9445958",
+      "refs": [
+        {
+          "rva": "0x246448d",
+          "function": {
+            "begin": "0x2464460",
+            "end": "0x24644af"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "essageSendSourceEmoticonMessageSRecordSendSourceChatInputTempAppImageMessageSendVideoMessageSendTextMessageSendSMessageSendSource",
+      "file": "0x953bc70",
+      "rva": "0x953d670",
+      "refs": [
+        {
+          "rva": "0x2aacf13",
+          "function": {
+            "begin": "0x2aace30",
+            "end": "0x2aafd97"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "message::send_text_message",
+      "file": "0x95a4658",
+      "rva": "0x95a6058",
+      "refs": [
+        {
+          "rva": "0x2e42a2f",
+          "function": {
+            "begin": "0x2e42990",
+            "end": "0x2e42b13"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "[sync] process msg count :%d,%d,%d",
+      "file": "0x95acf40",
+      "rva": "0x95ae940",
+      "refs": [
+        {
+          "rva": "0x2ebb82e",
+          "function": {
+            "begin": "0x2ebb760",
+            "end": "0x2ebc32d"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "micromsg.SendMsgRequestNew",
+      "file": "0x95b6b68",
+      "rva": "0x95b8568",
+      "refs": [
+        {
+          "rva": "0x2f052cd",
+          "function": {
+            "begin": "0x2f052a0",
+            "end": "0x2f052ef"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "micromsg.SendMsgResponseNew",
+      "file": "0x95b6c88",
+      "rva": "0x95b8688",
+      "refs": [
+        {
+          "rva": "0x2f066bd",
+          "function": {
+            "begin": "0x2f06690",
+            "end": "0x2f066df"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "HistoryAddMsgInfo",
+      "file": "0x95ecf08",
+      "rva": "0x95ee908",
+      "refs": [
+        {
+          "rva": "0x30c5db7",
+          "function": {
+            "begin": "0x30c5a10",
+            "end": "0x30c5fdd"
+          }
+        },
+        {
+          "rva": "0x30c6b65",
+          "function": {
+            "begin": "0x30c6b10",
+            "end": "0x30c6d66"
+          }
+        },
+        {
+          "rva": "0x30c6bdb",
+          "function": {
+            "begin": "0x30c6b10",
+            "end": "0x30c6d66"
+          }
+        },
+        {
+          "rva": "0x30c8eae",
+          "function": {
+            "begin": "0x30c8cf0",
+            "end": "0x30c9039"
+          }
+        },
+        {
+          "rva": "0x30c9ec2",
+          "function": {
+            "begin": "0x30c9ad0",
+            "end": "0x30ca366"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "send_msg_noexcept",
+      "file": "0x961c940",
+      "rva": "0x961e340",
+      "refs": [
+        {
+          "rva": "0x333a678",
+          "function": {
+            "begin": "0x333a5d0",
+            "end": "0x333a777"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "send_msg_noexcept_has_capacity_",
+      "file": "0x961c970",
+      "rva": "0x961e370",
+      "refs": [
+        {
+          "rva": "0x333a972",
+          "function": {
+            "begin": "0x333a8d0",
+            "end": "0x333abb6"
+          }
+        },
+        {
+          "rva": "0x333aad3",
+          "function": {
+            "begin": "0x333a8d0",
+            "end": "0x333abb6"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "notification message",
+      "file": "0x96776e0",
+      "rva": "0x96790e0",
+      "refs": [],
+      "pointer_refs": [
+        "0x9678e78"
+      ]
+    },
+    {
+      "text": "AddMessageListToDBForSync",
+      "file": "0x96dfef0",
+      "rva": "0x96e18f0",
+      "refs": [
+        {
+          "rva": "0x38ea05c",
+          "function": {
+            "begin": "0x38e9f80",
+            "end": "0x38eccf4"
+          }
+        },
+        {
+          "rva": "0x38ea223",
+          "function": {
+            "begin": "0x38e9f80",
+            "end": "0x38eccf4"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMessageListToDBForSync final_result:",
+      "file": "0x96dff28",
+      "rva": "0x96e1928",
+      "refs": [
+        {
+          "rva": "0x38ec69e",
+          "function": {
+            "begin": "0x38e9f80",
+            "end": "0x38eccf4"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoGetOrAddMessageGroupTime",
+      "file": "0x96e0250",
+      "rva": "0x96e1c50",
+      "refs": [
+        {
+          "rva": "0x391bb1d",
+          "function": {
+            "begin": "0x391ba50",
+            "end": "0x391cdb4"
+          }
+        },
+        {
+          "rva": "0x391bd82",
+          "function": {
+            "begin": "0x391ba50",
+            "end": "0x391cdb4"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoGetOrAddMessageGroupTime chatname:",
+      "file": "0x96e0290",
+      "rva": "0x96e1c90",
+      "refs": [
+        {
+          "rva": "0x391c797",
+          "function": {
+            "begin": "0x391ba50",
+            "end": "0x391cdb4"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoGetSessionMessageListWithPageFromDB",
+      "file": "0x96e0708",
+      "rva": "0x96e2108",
+      "refs": [
+        {
+          "rva": "0x3952d7b",
+          "function": {
+            "begin": "0x3952ca0",
+            "end": "0x39546cf"
+          }
+        },
+        {
+          "rva": "0x3952fad",
+          "function": {
+            "begin": "0x3952ca0",
+            "end": "0x39546cf"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoGetSessionMessageListWithPageFromDB index:",
+      "file": "0x96e0740",
+      "rva": "0x96e2140",
+      "refs": [
+        {
+          "rva": "0x3953c5b",
+          "function": {
+            "begin": "0x3952ca0",
+            "end": "0x39546cf"
+          }
+        },
+        {
+          "rva": "0x3953cb7",
+          "function": {
+            "begin": "0x3952ca0",
+            "end": "0x39546cf"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "SessionMessageCount_",
+      "file": "0x96e0770",
+      "rva": "0x96e2170",
+      "refs": [
+        {
+          "rva": "0x398a7bf",
+          "function": {
+            "begin": "0x398a0d0",
+            "end": "0x398b4a4"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoAddMessageVoiceInfoToDB batch",
+      "file": "0x96e0808",
+      "rva": "0x96e2208",
+      "refs": [
+        {
+          "rva": "0x3970c53",
+          "function": {
+            "begin": "0x3970b50",
+            "end": "0x397242e"
+          }
+        },
+        {
+          "rva": "0x3970ca8",
+          "function": {
+            "begin": "0x3970b50",
+            "end": "0x397242e"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "CoAddMessageVoiceInfoToDB batch, tag:",
+      "file": "0x96e0828",
+      "rva": "0x96e2228",
+      "refs": [
+        {
+          "rva": "0x3971d5b",
+          "function": {
+            "begin": "0x3970b50",
+            "end": "0x397242e"
+          }
+        },
+        {
+          "rva": "0x3971dbe",
+          "function": {
+            "begin": "0x3970b50",
+            "end": "0x397242e"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB with session",
+      "file": "0x96e0850",
+      "rva": "0x96e2250",
+      "refs": [
+        {
+          "rva": "0x397a338",
+          "function": {
+            "begin": "0x397a270",
+            "end": "0x397bc93"
+          }
+        },
+        {
+          "rva": "0x397a370",
+          "function": {
+            "begin": "0x397a270",
+            "end": "0x397bc93"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB",
+      "file": "0x96e0880",
+      "rva": "0x96e2280",
+      "refs": [
+        {
+          "rva": "0x397cf3e",
+          "function": {
+            "begin": "0x397ce70",
+            "end": "0x397e84c"
+          }
+        },
+        {
+          "rva": "0x397cf76",
+          "function": {
+            "begin": "0x397ce70",
+            "end": "0x397e84c"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB with session: query duplicate svrid",
+      "file": "0x96e08a0",
+      "rva": "0x96e22a0",
+      "refs": [
+        {
+          "rva": "0x397a829",
+          "function": {
+            "begin": "0x397a270",
+            "end": "0x397bc93"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB with session: filter duplicate svrid",
+      "file": "0x96e08e0",
+      "rva": "0x96e22e0",
+      "refs": [
+        {
+          "rva": "0x397ab0d",
+          "function": {
+            "begin": "0x397a270",
+            "end": "0x397bc93"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB with session: ",
+      "file": "0x96e0958",
+      "rva": "0x96e2358",
+      "refs": [
+        {
+          "rva": "0x397b394",
+          "function": {
+            "begin": "0x397a270",
+            "end": "0x397bc93"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB: query duplicate svrid",
+      "file": "0x96e0988",
+      "rva": "0x96e2388",
+      "refs": [
+        {
+          "rva": "0x397d43c",
+          "function": {
+            "begin": "0x397ce70",
+            "end": "0x397e84c"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB: filter duplicate svrid",
+      "file": "0x96e09c0",
+      "rva": "0x96e23c0",
+      "refs": [
+        {
+          "rva": "0x397d7a8",
+          "function": {
+            "begin": "0x397ce70",
+            "end": "0x397e84c"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "TaskInnerAddMessageListToDB message count:{",
+      "file": "0x96e09f8",
+      "rva": "0x96e23f8",
+      "refs": [
+        {
+          "rva": "0x397df76",
+          "function": {
+            "begin": "0x397ce70",
+            "end": "0x397e84c"
+          }
+        },
+        {
+          "rva": "0x397dfd9",
+          "function": {
+            "begin": "0x397ce70",
+            "end": "0x397e84c"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "InnerAddMessageListToDB without session",
+      "file": "0x96e0af0",
+      "rva": "0x96e24f0",
+      "refs": [
+        {
+          "rva": "0x39807d7",
+          "function": {
+            "begin": "0x3980500",
+            "end": "0x3982365"
+          }
+        },
+        {
+          "rva": "0x398080f",
+          "function": {
+            "begin": "0x3980500",
+            "end": "0x3982365"
+          }
+        },
+        {
+          "rva": "0x3985df7",
+          "function": {
+            "begin": "0x3985b20",
+            "end": "0x3987985"
+          }
+        },
+        {
+          "rva": "0x3985e2f",
+          "function": {
+            "begin": "0x3985b20",
+            "end": "0x3987985"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "InnerAddMessageListToDB with tag:",
+      "file": "0x96e0b48",
+      "rva": "0x96e2548",
+      "refs": [
+        {
+          "rva": "0x3981c0c",
+          "function": {
+            "begin": "0x3980500",
+            "end": "0x3982365"
+          }
+        },
+        {
+          "rva": "0x398722c",
+          "function": {
+            "begin": "0x3985b20",
+            "end": "0x3987985"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "InnerAddMessageListToDB with session",
+      "file": "0x96e1640",
+      "rva": "0x96e3040",
+      "refs": [
+        {
+          "rva": "0x38f1829",
+          "function": {
+            "begin": "0x38f1510",
+            "end": "0x38f34aa"
+          }
+        },
+        {
+          "rva": "0x38f1861",
+          "function": {
+            "begin": "0x38f1510",
+            "end": "0x38f34aa"
+          }
+        },
+        {
+          "rva": "0x38f4569",
+          "function": {
+            "begin": "0x38f4250",
+            "end": "0x38f61ea"
+          }
+        },
+        {
+          "rva": "0x38f45a1",
+          "function": {
+            "begin": "0x38f4250",
+            "end": "0x38f61ea"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "InnerAddMessageListToDB with session:",
+      "file": "0x96e1668",
+      "rva": "0x96e3068",
+      "refs": [
+        {
+          "rva": "0x38f2e1e",
+          "function": {
+            "begin": "0x38f1510",
+            "end": "0x38f34aa"
+          }
+        },
+        {
+          "rva": "0x38f5b5e",
+          "function": {
+            "begin": "0x38f4250",
+            "end": "0x38f61ea"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "EmoticonMessageHandler",
+      "file": "0x96ee2a0",
+      "rva": "0x96efca0",
+      "refs": [
+        {
+          "rva": "0x39c35c7",
+          "function": {
+            "begin": "0x39c0ba0",
+            "end": "0x39c4175"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "LocationMessageHandler",
+      "file": "0x96ee2e8",
+      "rva": "0x96efce8",
+      "refs": [
+        {
+          "rva": "0x39c3b9f",
+          "function": {
+            "begin": "0x39c0ba0",
+            "end": "0x39c4175"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "/cgi-bin/micromsg-bin/newsendmsg",
+      "file": "0x96ffb90",
+      "rva": "0x9701590",
+      "refs": [
+        {
+          "rva": "0x3a7372e",
+          "function": {
+            "begin": "0x3a73260",
+            "end": "0x3a73d15"
+          }
+        },
+        {
+          "rva": "0x3a77bcf",
+          "function": {
+            "begin": "0x3a77b50",
+            "end": "0x3a77ddc"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "sendmsg_",
+      "file": "0x9766ee0",
+      "rva": "0x97688e0",
+      "refs": [
+        {
+          "rva": "0x3de3e8d",
+          "function": {
+            "begin": "0x3de3cb0",
+            "end": "0x3de41d0"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "sendmsg_drag_forward",
+      "file": "0x978c808",
+      "rva": "0x978e208",
+      "refs": [
+        {
+          "rva": "0x3f35cd7",
+          "function": {
+            "begin": "0x3f35c50",
+            "end": "0x3f361cd"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "notification_message_cell_style",
+      "file": "0x97e6980",
+      "rva": "0x97e8380",
+      "refs": [
+        {
+          "rva": "0x4243ad7",
+          "function": {
+            "begin": "0x42410b0",
+            "end": "0x42452c5"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "newMsgId",
+      "file": "0x9855c68",
+      "rva": "0x9857668",
+      "refs": [
+        {
+          "rva": "0x45d5daa",
+          "function": {
+            "begin": "0x45d5bf0",
+            "end": "0x45d5f3c"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "Total:%lldms, AddMsgTime:%lldms, HandleMediaTime:%lldms",
+      "file": "0x993ce7e",
+      "rva": "0x993e87e",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "async message interval:%_",
+      "file": "0x99660f2",
+      "rva": "0x9967af2",
+      "refs": [
+        {
+          "rva": "0x4ee9f3b",
+          "function": {
+            "begin": "0x4ee98f0",
+            "end": "0x4eea125"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "ThreadAddMessageResourceList",
+      "file": "0x99acea0",
+      "rva": "0x99ae8a0",
+      "refs": [
+        {
+          "rva": "0x5283a3f",
+          "function": {
+            "begin": "0x5283940",
+            "end": "0x5284617"
+          }
+        },
+        {
+          "rva": "0x5283b2b",
+          "function": {
+            "begin": "0x5283940",
+            "end": "0x5284617"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "ThreadAddMessageResourceList with build resource:",
+      "file": "0x99acec0",
+      "rva": "0x99ae8c0",
+      "refs": [
+        {
+          "rva": "0x5283d89",
+          "function": {
+            "begin": "0x5283940",
+            "end": "0x5284617"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "ThreadAddMessageResourceList with message_list:",
+      "file": "0x99acf10",
+      "rva": "0x99ae910",
+      "refs": [
+        {
+          "rva": "0x528411a",
+          "function": {
+            "begin": "0x5283940",
+            "end": "0x5284617"
+          }
+        },
+        {
+          "rva": "0x528417d",
+          "function": {
+            "begin": "0x5283940",
+            "end": "0x5284617"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "wavelink.WaveLinkSendMsgRetEvent",
+      "file": "0x99b5538",
+      "rva": "0x99b6f38",
+      "refs": [
+        {
+          "rva": "0x52bad9d",
+          "function": {
+            "begin": "0x52bad70",
+            "end": "0x52badbf"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "ilink.IlinkAddMsgCmd",
+      "file": "0x99f3f38",
+      "rva": "0x99f5938",
+      "refs": [
+        {
+          "rva": "0x5538c4d",
+          "function": {
+            "begin": "0x5538c20",
+            "end": "0x5538c6b"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "list_messages_failed: MessageManager not available",
+      "file": "0x99feea8",
+      "rva": "0x9a008a8",
+      "refs": [
+        {
+          "rva": "0x55b39ba",
+          "function": {
+            "begin": "0x55b2a20",
+            "end": "0x55b3b3d"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "get_messages_around_failed: MessageManager not available",
+      "file": "0x99ff900",
+      "rva": "0x9a01300",
+      "refs": [
+        {
+          "rva": "0x55b9828",
+          "function": {
+            "begin": "0x55b9120",
+            "end": "0x55badd7"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "send_message_failed: MessageManager is unavailable",
+      "file": "0x9a01f98",
+      "rva": "0x9a03998",
+      "refs": [
+        {
+          "rva": "0x55d0ee2",
+          "function": {
+            "begin": "0x55cfaa0",
+            "end": "0x55d114f"
+          }
+        },
+        {
+          "rva": "0x55debd9",
+          "function": {
+            "begin": "0x55dae00",
+            "end": "0x55df800"
+          }
+        },
+        {
+          "rva": "0x55e9ba2",
+          "function": {
+            "begin": "0x55e9a40",
+            "end": "0x55ea56f"
+          }
+        },
+        {
+          "rva": "0x55eaea2",
+          "function": {
+            "begin": "0x55ead40",
+            "end": "0x55eb7bd"
+          }
+        },
+        {
+          "rva": "0x55ec0b2",
+          "function": {
+            "begin": "0x55ebf50",
+            "end": "0x55ec9cd"
+          }
+        },
+        {
+          "rva": "0x55eda07",
+          "function": {
+            "begin": "0x55ed160",
+            "end": "0x55ee396"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "send_text_message_failed: MessageManager is unavailable",
+      "file": "0x9a055c8",
+      "rva": "0x9a06fc8",
+      "refs": [
+        {
+          "rva": "0x55f0c40",
+          "function": {
+            "begin": "0x55f0380",
+            "end": "0x55f10ce"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "send_text_message_failed (logout)",
+      "file": "0x9a05750",
+      "rva": "0x9a07150",
+      "refs": [
+        {
+          "rva": "0x55f1bcd",
+          "function": {
+            "begin": "0x55f1b90",
+            "end": "0x55f1c67"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "_SECONDMESSAGESERVERID",
+      "file": "0x9a46f98",
+      "rva": "0x9a48998",
+      "refs": [
+        {
+          "rva": "0x57f36c0",
+          "function": {
+            "begin": "0x57f2fe0",
+            "end": "0x57f380c"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "mmremoting.player.protocol.SetPlayPositionMessage",
+      "file": "0x9a8a208",
+      "rva": "0x9a8bc08",
+      "refs": [
+        {
+          "rva": "0x59156cd",
+          "function": {
+            "begin": "0x59156a0",
+            "end": "0x59156fc"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "wxvoipsdk.SendMsgInfo",
+      "file": "0x9aadba8",
+      "rva": "0x9aaf5a8",
+      "refs": [
+        {
+          "rva": "0x5a8883d",
+          "function": {
+            "begin": "0x5a88810",
+            "end": "0x5a88862"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "wxvoipsdk.SendMsgRet",
+      "file": "0x9aadc28",
+      "rva": "0x9aaf628",
+      "refs": [
+        {
+          "rva": "0x5a889cd",
+          "function": {
+            "begin": "0x5a889a0",
+            "end": "0x5a889eb"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "issendmsg",
+      "file": "0x9b1cb90",
+      "rva": "0x9b1e590",
+      "refs": [
+        {
+          "rva": "0x5e77fea",
+          "function": {
+            "begin": "0x5e77ee0",
+            "end": "0x5e78814"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "OnSubscrptionMessageBoxExpose",
+      "file": "0x9bb7ab0",
+      "rva": "0x9bb94b0",
+      "refs": [
+        {
+          "rva": "0x62d60ee",
+          "function": {
+            "begin": "0x62d5700",
+            "end": "0x62d6194"
+          }
+        },
+        {
+          "rva": "0x704bdfc",
+          "function": {
+            "begin": "0x704b6e0",
+            "end": "0x704be96"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "topNewMsgCount",
+      "file": "0x9bb7b60",
+      "rva": "0x9bb9560",
+      "refs": [
+        {
+          "rva": "0x62dd76d",
+          "function": {
+            "begin": "0x62dcc90",
+            "end": "0x62ddfd3"
+          }
+        },
+        {
+          "rva": "0x704945e",
+          "function": {
+            "begin": "0x7048ed0",
+            "end": "0x7049ad0"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "<cgi reqid=\"237\" respid=\"1000000237\" nettype=\"3\" netstrategy=\"0\">newsendmsg</cgi>",
+      "file": "0x9c50fdd",
+      "rva": "0x9c529dd",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "<cgi reqid=\"2\" respid=\"1000000002\" nettype=\"3\" netstrategy=\"0\">sendmsg</cgi>",
+      "file": "0x9c51128",
+      "rva": "0x9c52b28",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "IsRecvMsgExpected(msg)",
+      "file": "0x9c57562",
+      "rva": "0x9c58f62",
+      "refs": [
+        {
+          "rva": "0x6726666",
+          "function": {
+            "begin": "0x6725f20",
+            "end": "0x67266ed"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "[resource fts] GetSessionMessageListWithPageOnCreateTime message count:",
+      "file": "0x9c794f0",
+      "rva": "0x9c7aef0",
+      "refs": [
+        {
+          "rva": "0x6910628",
+          "function": {
+            "begin": "0x690fb20",
+            "end": "0x6911baa"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "micromsg.VoiceRecognizeReceiveMessageToTextExtraData",
+      "file": "0x9ccdfd8",
+      "rva": "0x9ccf9d8",
+      "refs": [
+        {
+          "rva": "0x6b72f3d",
+          "function": {
+            "begin": "0x6b72f10",
+            "end": "0x6b72f71"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "sendmsg_fav_direct",
+      "file": "0x9d1a060",
+      "rva": "0x9d1ba60",
+      "refs": [
+        {
+          "rva": "0x6dadc2f",
+          "function": {
+            "begin": "0x6dad970",
+            "end": "0x6dae259"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "AddMsgTime:%lldms, HandleMediaTime: % lldms",
+      "file": "0x9d42b47",
+      "rva": "0x9d44547",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "xwechat://CommonMessageInput:",
+      "file": "0x9e28c78",
+      "rva": "0x9e2a678",
+      "refs": [
+        {
+          "rva": "0x74924e2",
+          "function": {
+            "begin": "0x7491de0",
+            "end": "0x74929c9"
+          }
+        },
+        {
+          "rva": "0x7492545",
+          "function": {
+            "begin": "0x7491de0",
+            "end": "0x74929c9"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "SendMessageTimeoutW",
+      "file": "0x9e6d142",
+      "rva": "0x9e6eb42",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "SendMessageW",
+      "file": "0x9e6d158",
+      "rva": "0x9e6eb58",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "My Interaction Messages",
+      "file": "0xb2c0fd9",
+      "rva": "0xb2c2bd9",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "All Interaction Messages",
+      "file": "0xb2c0ff1",
+      "rva": "0xb2c2bf1",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "Friends' Interaction Messages",
+      "file": "0xb2c1033",
+      "rva": "0xb2c2c33",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "Weixin ClawBot disabled. Unable to send or receive messages.",
+      "file": "0xb2c5909",
+      "rva": "0xb2c7509",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "Disconnected from OpenClaw. Unable to send or receive messages.",
+      "file": "0xb2c5946",
+      "rva": "0xb2c7546",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "OnNewSessionMessageLoaded",
+      "file": "0xb3a242d",
+      "rva": "0xb3a402d",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "OnMessageListScrollingStart",
+      "file": "0xb3a253e",
+      "rva": "0xb3a413e",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "OnMessageTipBarStatusChanged",
+      "file": "0xb3a2dfe",
+      "rva": "0xb3a49fe",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "OnMessageListScrollingStart",
+      "file": "0xb3a2e60",
+      "rva": "0xb3a4a60",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "OnSendMessage",
+      "file": "0xb3a47c7",
+      "rva": "0xb3a63c7",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "mmui::ChatBotSendMsgCardPanel",
+      "file": "0xb3a5020",
+      "rva": "0xb3a6c20",
+      "refs": [
+        {
+          "rva": "0x8b0701",
+          "function": {
+            "begin": "0x8b06f0",
+            "end": "0x8b0744"
+          }
+        }
+      ],
+      "pointer_refs": []
+    },
+    {
+      "text": "SetCommonMessageAsVerifyMessage",
+      "file": "0xb3a71f5",
+      "rva": "0xb3a8df5",
+      "refs": [],
+      "pointer_refs": []
+    },
+    {
+      "text": "common_message",
+      "file": "0xb3a7222",
+      "rva": "0xb3a8e22",
+      "refs": [],
+      "pointer_refs": []
+    }
+  ],
+  "old_offsets": {
+    "send_message": {
+      "reference_version": "4.1.10.27",
+      "rva": "0x1677a30",
+      "current_bytes": "c6 48 89 c1 4c 89 ea 4d 89 f0 e8 01 d4 09 06 48 8d 5d c0 e8 c8 e2 9c fe",
+      "current_function": {
+        "begin": "0x1677470",
+        "end": "0x16783cf"
+      },
+      "valid_for_current_version": false
+    },
+    "text_constructor": {
+      "reference_version": "4.1.10.27",
+      "rva": "0x6b2c30",
+      "current_bytes": "c0 48 83 c1 10 41 89 d0 49 c1 e0 03 48 89 fa e8 fc 21 06 07 8b 54 24 70",
+      "current_function": {
+        "begin": "0x6b2630",
+        "end": "0x6b2f73"
+      },
+      "valid_for_current_version": false
+    },
+    "create_param2": {
+      "reference_version": "4.1.10.27",
+      "rva": "0xdf40",
+      "current_bytes": "8b 01 ff 50 20 90 48 83 c4 28 5b 5f 5e 41 5c 41 5d 41 5e 41 5f 5d c3 cc",
+      "current_function": {
+        "begin": "0xdf10",
+        "end": "0xdf57"
+      },
+      "valid_for_current_version": false
+    }
+  },
+  "status": "Static candidates only; no runtime verification or sending performed."
+}

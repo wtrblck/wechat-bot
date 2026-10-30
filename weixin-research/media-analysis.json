@@ -1,0 +1,1249 @@
+{
+  "sha256": "e0428a7b691853de496532523c2c09aa095f90941c37c9f4cfb3f137f3c66556",
+  "anchors": [
+    {
+      "text": "clicfg_image_send_size_limit_xwechat",
+      "rva": 151641920,
+      "refs": []
+    },
+    {
+      "text": "InputLimitSendFileSize",
+      "rva": 151642048,
+      "refs": []
+    },
+    {
+      "text": "InputLimitSendBigFileSize",
+      "rva": 151642072,
+      "refs": []
+    },
+    {
+      "text": "clicfg_xwechat_open_large_than_1g_file_send",
+      "rva": 151644472,
+      "refs": [
+        {
+          "rva": "0xa4bcf5",
+          "function": {
+            "begin": 10796128,
+            "end": 10796319,
+            "unwind": 168015764
+          }
+        }
+      ]
+    },
+    {
+      "text": "Begin StartSendMessageSyncStage",
+      "rva": 153801184,
+      "refs": [
+        {
+          "rva": "0x180861f",
+          "function": {
+            "begin": 25199968,
+            "end": 25204394,
+            "unwind": 170204904
+          }
+        },
+        {
+          "rva": "0x180c8b2",
+          "function": {
+            "begin": 25217040,
+            "end": 25219615,
+            "unwind": 170208368
+          }
+        }
+      ]
+    },
+    {
+      "text": "ImageMessageSendSource",
+      "rva": 154129152,
+      "refs": []
+    },
+    {
+      "text": "VideoMessageSendSource",
+      "rva": 154131384,
+      "refs": []
+    },
+    {
+      "text": "file_sender_list",
+      "rva": 154556704,
+      "refs": [
+        {
+          "rva": "0x1c8e8ae",
+          "function": {
+            "begin": 29943808,
+            "end": 29944200,
+            "unwind": 171158368
+          }
+        }
+      ]
+    },
+    {
+      "text": "file_msg_send",
+      "rva": 155402608,
+      "refs": [
+        {
+          "rva": "0x232be7b",
+          "function": {
+            "begin": 36874896,
+            "end": 36880047,
+            "unwind": 172431680
+          }
+        }
+      ]
+    },
+    {
+      "text": "file_send_type",
+      "rva": 155402656,
+      "refs": [
+        {
+          "rva": "0x232b31d",
+          "function": {
+            "begin": 36874896,
+            "end": 36880047,
+            "unwind": 172431680
+          }
+        }
+      ]
+    },
+    {
+      "text": "%_ send fullimg without midimg, fobid wxsignal.",
+      "rva": 156400540,
+      "refs": [
+        {
+          "rva": "0x29abad9",
+          "function": {
+            "begin": 43692544,
+            "end": 43696185,
+            "unwind": 173434172
+          }
+        }
+      ]
+    },
+    {
+      "text": "midimgpath %_ sendfromcdn %_ checkexist %_ smallvideo %_,",
+      "rva": 156439404,
+      "refs": [
+        {
+          "rva": "0x2a29955",
+          "function": {
+            "begin": 44208848,
+            "end": 44212213,
+            "unwind": 173491768
+          }
+        }
+      ]
+    },
+    {
+      "text": "essageSendSourceEmoticonMessageSRecordSendSourceChatInputTempAppImageMessageSendVideoMessageSendTextMessageSendSMessageSendSource",
+      "rva": 156489328,
+      "refs": []
+    },
+    {
+      "text": "send_video_data_thread",
+      "rva": 156526456,
+      "refs": [
+        {
+          "rva": "0x2aff4b0",
+          "function": {
+            "begin": 45085792,
+            "end": 45086068,
+            "unwind": 173651452
+          }
+        }
+      ]
+    },
+    {
+      "text": "image send failed: ",
+      "rva": 156638168,
+      "refs": [
+        {
+          "rva": "0x2c18813",
+          "function": {
+            "begin": 46235712,
+            "end": 46239639,
+            "unwind": 173872232
+          }
+        },
+        {
+          "rva": "0x2c18ce3",
+          "function": {
+            "begin": 46235712,
+            "end": 46239639,
+            "unwind": 173872232
+          }
+        }
+      ]
+    },
+    {
+      "text": "File message send failed: ",
+      "rva": 156638272,
+      "refs": [
+        {
+          "rva": "0x2c1a48b",
+          "function": {
+            "begin": 46241456,
+            "end": 46247594,
+            "unwind": 173873488
+          }
+        },
+        {
+          "rva": "0x2c1aa7b",
+          "function": {
+            "begin": 46241456,
+            "end": 46247594,
+            "unwind": 173873488
+          }
+        }
+      ]
+    },
+    {
+      "text": "message::send_message",
+      "rva": 156917808,
+      "refs": []
+    },
+    {
+      "text": "message::send_text_message",
+      "rva": 156917848,
+      "refs": []
+    },
+    {
+      "text": "send video datato engine",
+      "rva": 158156952,
+      "refs": []
+    },
+    {
+      "text": "virtual mmui::SPSendSourceVideoViewModel::OnClicked",
+      "rva": 160016368,
+      "refs": []
+    },
+    {
+      "text": "virtual mmui::SPSendSourceImageViewModel::OnClicked",
+      "rva": 160018096,
+      "refs": []
+    },
+    {
+      "text": "file_send_ms",
+      "rva": 160166128,
+      "refs": [
+        {
+          "rva": "0x4927a8c",
+          "function": {
+            "begin": 76707792,
+            "end": 76711681,
+            "unwind": 179663460
+          }
+        },
+        {
+          "rva": "0x492932a",
+          "function": {
+            "begin": 76714096,
+            "end": 76716199,
+            "unwind": 179665192
+          }
+        }
+      ]
+    },
+    {
+      "text": "task read-write timeout, taskid:%_, wworker:%_, curTime:%_ nStartSendTime:%_, nReadWriteTimeOut:%_",
+      "rva": 160760676,
+      "refs": [
+        {
+          "rva": "0x4d6b083",
+          "function": {
+            "begin": 81175696,
+            "end": 81181698,
+            "unwind": 180278496
+          }
+        }
+      ]
+    },
+    {
+      "text": "task long-polling timeout, taskid:%_, wworker:%_, nStartSendTime:%_, nLongPollingTimeout:%_",
+      "rva": 160760775,
+      "refs": [
+        {
+          "rva": "0x4d6aac2",
+          "function": {
+            "begin": 81175696,
+            "end": 81181698,
+            "unwind": 180278496
+          }
+        }
+      ]
+    },
+    {
+      "text": "task first-pkg timeout taskid:%_, wworker:%_, nStartSendTime:%_, nfirstpkgtimeout:%_",
+      "rva": 160760867,
+      "refs": [
+        {
+          "rva": "0x4d6bbc2",
+          "function": {
+            "begin": 81175696,
+            "end": 81181698,
+            "unwind": 180278496
+          }
+        }
+      ]
+    },
+    {
+      "text": "taskid:%_, worker:%_, nStartSendTime:%_",
+      "rva": 160762025,
+      "refs": [
+        {
+          "rva": "0x4d7716e",
+          "function": {
+            "begin": 81227328,
+            "end": 81228192,
+            "unwind": 180285824
+          }
+        }
+      ]
+    },
+    {
+      "text": "task first-pkg timeout taskid:%_,  nStartSendTime=%_, nfirstpkgtimeout=%_",
+      "rva": 160769457,
+      "refs": [
+        {
+          "rva": "0x4d8e047",
+          "function": {
+            "begin": 81320208,
+            "end": 81325880,
+            "unwind": 180300240
+          }
+        }
+      ]
+    },
+    {
+      "text": "task read-write timeout, taskid:%_, , nStartSendTime=%_, nReadWriteTimeOut=%_",
+      "rva": 160769601,
+      "refs": [
+        {
+          "rva": "0x4d8e377",
+          "function": {
+            "begin": 81320208,
+            "end": 81325880,
+            "unwind": 180300240
+          }
+        }
+      ]
+    },
+    {
+      "text": "task timeout, taskid:%_, nStartSendTime=%_, cur_time=%_, timeout:%_",
+      "rva": 160769679,
+      "refs": [
+        {
+          "rva": "0x4d8e742",
+          "function": {
+            "begin": 81320208,
+            "end": 81325880,
+            "unwind": 180300240
+          }
+        }
+      ]
+    },
+    {
+      "text": "mars::stn::LongLinkMMTLSProfile::send_mmtls_error_code",
+      "rva": 160844082,
+      "refs": [
+        {
+          "rva": "0x4ebe2af",
+          "function": {
+            "begin": 82567792,
+            "end": 82568268,
+            "unwind": 180501836
+          }
+        }
+      ]
+    },
+    {
+      "text": "KVDATAFLOW(file) task send fail, reset reporting status:%_",
+      "rva": 160856644,
+      "refs": [
+        {
+          "rva": "0x4eecdf3",
+          "function": {
+            "begin": 82758304,
+            "end": 82759218,
+            "unwind": 180533476
+          }
+        }
+      ]
+    },
+    {
+      "text": "virtual HDVideoStreamingDownload::GetDataToSend",
+      "rva": 160903709,
+      "refs": [
+        {
+          "rva": "0x4fae8c1",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4faec34",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4faee78",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4faf0f5",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4faf5f2",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fafc15",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fafe1c",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0325",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb04c7",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0702",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb077c",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb08bf",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0941",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb09ea",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0af1",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0b9a",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0c93",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb0d72",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb1424",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb1869",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        },
+        {
+          "rva": "0x4fb1962",
+          "function": {
+            "begin": 83552384,
+            "end": 83565357,
+            "unwind": 180653956
+          }
+        }
+      ]
+    },
+    {
+      "text": "HDVideoStreamingDownload::__BuildSendRequest",
+      "rva": 160909659,
+      "refs": [
+        {
+          "rva": "0x4fb3c7a",
+          "function": {
+            "begin": 83573760,
+            "end": 83576051,
+            "unwind": 180657292
+          }
+        },
+        {
+          "rva": "0x4fb3dd9",
+          "function": {
+            "begin": 83573760,
+            "end": 83576051,
+            "unwind": 180657292
+          }
+        },
+        {
+          "rva": "0x4fb3fd8",
+          "function": {
+            "begin": 83573760,
+            "end": 83576051,
+            "unwind": 180657292
+          }
+        },
+        {
+          "rva": "0x4fb40b8",
+          "function": {
+            "begin": 83573760,
+            "end": 83576051,
+            "unwind": 180657292
+          }
+        }
+      ]
+    },
+    {
+      "text": "virtual HttpVideoStreamingDownload::GetDataToSend",
+      "rva": 160915188,
+      "refs": [
+        {
+          "rva": "0x4fe4dbc",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe5128",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe5341",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe58c1",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe59ac",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe5a2c",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe5b2b",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe6060",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe6411",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe66ed",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe67bf",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe6919",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        },
+        {
+          "rva": "0x4fe69bc",
+          "function": {
+            "begin": 83774832,
+            "end": 83782626,
+            "unwind": 180687700
+          }
+        }
+      ]
+    },
+    {
+      "text": "virtual HLSVideoStreamingDownload::GetDataToSend",
+      "rva": 160938387,
+      "refs": [
+        {
+          "rva": "0x503c82d",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503cb85",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503ce45",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503cf46",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503d678",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503d853",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503d9c6",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503da46",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503db9f",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503deec",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503e12b",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503e2b0",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503e68e",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503e847",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503ea96",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503eb83",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503ebfb",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503ed9f",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503efbe",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503f0ae",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503f135",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503f1f0",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503f30e",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503f3c9",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503f4e7",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503fa6a",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503fce5",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        },
+        {
+          "rva": "0x503fdf0",
+          "function": {
+            "begin": 84133840,
+            "end": 84148094,
+            "unwind": 180737100
+          }
+        }
+      ]
+    },
+    {
+      "text": "HLSVideoStreamingDownload::__BuildSendRequest",
+      "rva": 160941153,
+      "refs": [
+        {
+          "rva": "0x5043b2e",
+          "function": {
+            "begin": 84163136,
+            "end": 84163860,
+            "unwind": 180742508
+          }
+        }
+      ]
+    },
+    {
+      "text": "virtual SnsImageMultiDownload::GetDataToSend",
+      "rva": 160943528,
+      "refs": [
+        {
+          "rva": "0x5064889",
+          "function": {
+            "begin": 84297776,
+            "end": 84300589,
+            "unwind": 180762716
+          }
+        },
+        {
+          "rva": "0x5064c40",
+          "function": {
+            "begin": 84297776,
+            "end": 84300589,
+            "unwind": 180762716
+          }
+        },
+        {
+          "rva": "0x50650aa",
+          "function": {
+            "begin": 84297776,
+            "end": 84300589,
+            "unwind": 180762716
+          }
+        }
+      ]
+    },
+    {
+      "text": "virtual SnsImageDownload::GetDataToSend",
+      "rva": 160945464,
+      "refs": [
+        {
+          "rva": "0x506c2e7",
+          "function": {
+            "begin": 84328928,
+            "end": 84330768,
+            "unwind": 180766532
+          }
+        },
+        {
+          "rva": "0x506c700",
+          "function": {
+            "begin": 84328928,
+            "end": 84330768,
+            "unwind": 180766532
+          }
+        }
+      ]
+    },
+    {
+      "text": "send_text_message_failed: MessageManager is unavailable",
+      "rva": 161509320,
+      "refs": []
+    },
+    {
+      "text": "send_text_message_failed (logout)",
+      "rva": 161509712,
+      "refs": []
+    },
+    {
+      "text": "micromsg.SendFileUploadMsgFileInfo",
+      "rva": 162261352,
+      "refs": []
+    },
+    {
+      "text": "micromsg.SendFileUploadMsgReq",
+      "rva": 162261496,
+      "refs": []
+    },
+    {
+      "text": "micromsg.SendFileUploadMsgResp",
+      "rva": 162261640,
+      "refs": []
+    },
+    {
+      "text": "/cgi-bin/micromsg-bin/sendfileuploadmsg",
+      "rva": 162328928,
+      "refs": []
+    },
+    {
+      "text": "send CheckVoiceTransRequest failed",
+      "rva": 162347848,
+      "refs": []
+    },
+    {
+      "text": "send UploadVoiceForTransRequest failed",
+      "rva": 162347888,
+      "refs": []
+    },
+    {
+      "text": "send GetVoiceTransResRequest failed",
+      "rva": 162347928,
+      "refs": []
+    },
+    {
+      "text": "cdntask %_ current size: %_ > 0, noneed send midimgdata.",
+      "rva": 164000816,
+      "refs": [
+        {
+          "rva": "0x67ef124",
+          "function": {
+            "begin": 108980784,
+            "end": 108984859,
+            "unwind": 184867892
+          }
+        }
+      ]
+    },
+    {
+      "text": "sendHeadImg",
+      "rva": 164102648,
+      "refs": [
+        {
+          "rva": "0x694b0bf",
+          "function": {
+            "begin": 110407584,
+            "end": 110409538,
+            "unwind": 167098796
+          }
+        },
+        {
+          "rva": "0x694c0d1",
+          "function": {
+            "begin": 110411872,
+            "end": 110416417,
+            "unwind": 185074984
+          }
+        }
+      ]
+    },
+    {
+      "text": "PC file access not authorized. Please send pc_search_file_auth_confirm card to let user agree, then retry.",
+      "rva": 164104576,
+      "refs": [
+        {
+          "rva": "0x69539bc",
+          "function": {
+            "begin": 110442528,
+            "end": 110448989,
+            "unwind": 185079040
+          }
+        },
+        {
+          "rva": "0x695889b",
+          "function": {
+            "begin": 110462688,
+            "end": 110465742,
+            "unwind": 185081796
+          }
+        }
+      ]
+    },
+    {
+      "text": "Send Image",
+      "rva": 187359106,
+      "refs": []
+    },
+    {
+      "text": "Send voice message",
+      "rva": 187359117,
+      "refs": []
+    },
+    {
+      "text": "File sending interrupted. Send it again.",
+      "rva": 187374046,
+      "refs": []
+    },
+    {
+      "text": "Send File",
+      "rva": 187377920,
+      "refs": []
+    },
+    {
+      "text": "Unable to send the following files; the rest can still be sent.",
+      "rva": 187385486,
+      "refs": []
+    },
+    {
+      "text": "Cannot send files larger than %s.",
+      "rva": 187385571,
+      "refs": []
+    },
+    {
+      "text": "Cannot send videos longer than %d minute(s).",
+      "rva": 187385745,
+      "refs": []
+    },
+    {
+      "text": "Sending files is not currently supported",
+      "rva": 187385977,
+      "refs": []
+    },
+    {
+      "text": "Sending file...",
+      "rva": 187390708,
+      "refs": []
+    },
+    {
+      "text": "The other user is sending the file...",
+      "rva": 187390724,
+      "refs": []
+    },
+    {
+      "text": "Image not downloaded. Unable to send.",
+      "rva": 187405698,
+      "refs": []
+    },
+    {
+      "text": "Cannot send a file with a size of 0 KB.",
+      "rva": 187437309,
+      "refs": []
+    },
+    {
+      "text": "Send Full Video",
+      "rva": 187437401,
+      "refs": []
+    },
+    {
+      "text": "Send voice (hold right ",
+      "rva": 187437447,
+      "refs": []
+    },
+    {
+      "text": "Send Voice",
+      "rva": 187437505,
+      "refs": []
+    },
+    {
+      "text": "Send Voice Message",
+      "rva": 187437516,
+      "refs": []
+    },
+    {
+      "text": "Send Voice",
+      "rva": 187437535,
+      "refs": []
+    },
+    {
+      "text": "Send voice (hold right Alt)",
+      "rva": 187437559,
+      "refs": []
+    },
+    {
+      "text": "Sending voice message, release to send, or press Esc/Backspace to cancel",
+      "rva": 187457762,
+      "refs": []
+    },
+    {
+      "text": "Sending a voice message... Try again later.",
+      "rva": 187458660,
+      "refs": []
+    },
+    {
+      "text": "Unable to send voice message",
+      "rva": 187460372,
+      "refs": []
+    },
+    {
+      "text": "- Send voice messages",
+      "rva": 187468017,
+      "refs": []
+    },
+    {
+      "text": "- Send voice messages",
+      "rva": 187468063,
+      "refs": []
+    },
+    {
+      "text": "- Send photos and videos as a combined message",
+      "rva": 187468697,
+      "refs": []
+    },
+    {
+      "text": "- Send photos and videos as a combined message",
+      "rva": 187468832,
+      "refs": []
+    },
+    {
+      "text": "- Use voice input and send voice messages",
+      "rva": 187468919,
+      "refs": []
+    },
+    {
+      "text": "- Combine images and videos after sending",
+      "rva": 187468991,
+      "refs": []
+    },
+    {
+      "text": "- Send photos and videos as a combined message",
+      "rva": 187469108,
+      "refs": []
+    },
+    {
+      "text": "- Send photos and videos as a combined message",
+      "rva": 187469195,
+      "refs": []
+    },
+    {
+      "text": "OnSendFile",
+      "rva": 188363292,
+      "refs": []
+    },
+    {
+      "text": "OnSendFile",
+      "rva": 188363490,
+      "refs": []
+    }
+  ],
+  "status": "Heuristic xrefs; decode instructions before using"
+}

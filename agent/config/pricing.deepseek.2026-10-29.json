@@ -1,0 +1,30 @@
+{
+  "version": "deepseek-official-cny-2026-10-29-vision-2026-10-30",
+  "verifiedOn": "2026-10-29",
+  "currency": "CNY",
+  "source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+  "calendarSource": "https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm",
+  "calendarYears": [2026],
+  "holidayRanges": [
+    ["2026-01-01", "2026-01-03"], ["2026-02-15", "2026-02-23"],
+    ["2026-04-04", "2026-04-06"], ["2026-05-01", "2026-05-05"],
+    ["2026-06-19", "2026-06-21"], ["2026-09-25", "2026-09-27"],
+    ["2026-10-01", "2026-10-07"]
+  ],
+  "models": [
+    {
+      "provider": "deepseek-official",
+      "names": ["deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"],
+      "imageMaxInputTokens": 1024,
+      "visionSource": "https://api-docs.deepseek.com/guides/vision/",
+      "peak": { "cacheHitInput": 0.04, "cacheMissInput": 2, "output": 8 },
+      "offPeak": { "cacheHitInput": 0.02, "cacheMissInput": 1, "output": 4 }
+    },
+    {
+      "provider": "deepseek-official",
+      "names": ["deepseek-v4-pro"],
+      "peak": { "cacheHitInput": 0.30, "cacheMissInput": 9, "output": 27 },
+      "offPeak": { "cacheHitInput": 0.15, "cacheMissInput": 4.5, "output": 13.5 }
+    }
+  ]
+}

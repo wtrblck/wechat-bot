@@ -1,0 +1,206 @@
+[
+  {
+    "target": "factory",
+    "site": "0x708cc5",
+    "begin": "0x708c90",
+    "end": "0x709017"
+  },
+  {
+    "target": "factory",
+    "site": "0x16fac12",
+    "begin": "0x16fabd0",
+    "end": "0x16fb063"
+  },
+  {
+    "target": "stage_a",
+    "site": "0x17a9236",
+    "begin": "0x17a87b0",
+    "end": "0x17a9f3b"
+  },
+  {
+    "target": "factory",
+    "site": "0x17b7fca",
+    "begin": "0x17b7d80",
+    "end": "0x17b84be"
+  },
+  {
+    "target": "factory",
+    "site": "0x18396fa",
+    "begin": "0x1838e30",
+    "end": "0x1839c14"
+  },
+  {
+    "target": "stage_b",
+    "site": "0x18678df",
+    "begin": "0x18676c0",
+    "end": "0x1867aec"
+  },
+  {
+    "target": "factory",
+    "site": "0x25462cb",
+    "begin": "0x2546280",
+    "end": "0x2546a46"
+  },
+  {
+    "target": "factory",
+    "site": "0x2f60fd5",
+    "begin": "0x2f60f40",
+    "end": "0x2f610c0"
+  },
+  {
+    "target": "factory",
+    "site": "0x2fa41bd",
+    "begin": "0x2fa40a0",
+    "end": "0x2fa61a2"
+  },
+  {
+    "target": "factory",
+    "site": "0x2fa4881",
+    "begin": "0x2fa40a0",
+    "end": "0x2fa61a2"
+  },
+  {
+    "target": "factory",
+    "site": "0x2fa48cb",
+    "begin": "0x2fa40a0",
+    "end": "0x2fa61a2"
+  },
+  {
+    "target": "factory",
+    "site": "0x37d8279",
+    "begin": "0x37d7330",
+    "end": "0x37d8577"
+  },
+  {
+    "target": "factory",
+    "site": "0x39e3849",
+    "begin": "0x39e2ff0",
+    "end": "0x39e3dcf"
+  },
+  {
+    "target": "factory",
+    "site": "0x3a1b086",
+    "begin": "0x3a1b050",
+    "end": "0x3a1b144"
+  },
+  {
+    "target": "sync",
+    "site": "0x3b49e34",
+    "begin": "0x3b48b80",
+    "end": "0x3b4a346"
+  },
+  {
+    "target": "factory",
+    "site": "0x3d8f5a0",
+    "begin": "0x3d8f550",
+    "end": "0x3d8fa8b"
+  },
+  {
+    "target": "factory",
+    "site": "0x3e224bc",
+    "begin": "0x3e22490",
+    "end": "0x3e225de"
+  },
+  {
+    "target": "factory",
+    "site": "0x3e26216",
+    "begin": "0x3e261d0",
+    "end": "0x3e26fd6"
+  },
+  {
+    "target": "factory",
+    "site": "0x48afd6b",
+    "begin": "0x48afd40",
+    "end": "0x48afe86"
+  },
+  {
+    "target": "factory",
+    "site": "0x48b06f4",
+    "begin": "0x48b0690",
+    "end": "0x48b0d7f"
+  },
+  {
+    "target": "factory",
+    "site": "0x55d0888",
+    "begin": "0x55cfaa0",
+    "end": "0x55d114f"
+  },
+  {
+    "target": "text_send",
+    "site": "0x55ef1df",
+    "begin": "0x55eeec0",
+    "end": "0x55ef299"
+  },
+  {
+    "target": "factory",
+    "site": "0x55f04b0",
+    "begin": "0x55f0380",
+    "end": "0x55f10ce"
+  },
+  {
+    "target": "factory",
+    "site": "0x56d24f7",
+    "begin": "0x56d1b20",
+    "end": "0x56d4e74"
+  },
+  {
+    "target": "factory",
+    "site": "0x56d2e8f",
+    "begin": "0x56d1b20",
+    "end": "0x56d4e74"
+  },
+  {
+    "target": "factory",
+    "site": "0x56d6526",
+    "begin": "0x56d5980",
+    "end": "0x56d8bc2"
+  },
+  {
+    "target": "factory",
+    "site": "0x59f464c",
+    "begin": "0x59f4620",
+    "end": "0x59f473b"
+  },
+  {
+    "target": "factory",
+    "site": "0x5c9ed00",
+    "begin": "0x5c9ecd0",
+    "end": "0x5c9ee23"
+  },
+  {
+    "target": "factory",
+    "site": "0x5ca4648",
+    "begin": "0x5ca4610",
+    "end": "0x5ca47c4"
+  },
+  {
+    "target": "factory",
+    "site": "0x5cac3b8",
+    "begin": "0x5cac380",
+    "end": "0x5cac531"
+  },
+  {
+    "target": "factory",
+    "site": "0x5dc014d",
+    "begin": "0x5dbff80",
+    "end": "0x5dc0730"
+  },
+  {
+    "target": "factory",
+    "site": "0x5dde62c",
+    "begin": "0x5dde600",
+    "end": "0x5dde74e"
+  },
+  {
+    "target": "factory",
+    "site": "0x5f29a38",
+    "begin": "0x5f28f00",
+    "end": "0x5f2a5c2"
+  },
+  {
+    "target": "factory",
+    "site": "0x5f30191",
+    "begin": "0x5f2f9b0",
+    "end": "0x5f32300"
+  }
+]

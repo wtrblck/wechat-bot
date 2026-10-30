@@ -1,0 +1,422 @@
+[
+  {
+    "offset": "0x909c540",
+    "text": "clicfg_image_send_size_limit_xwechat"
+  },
+  {
+    "offset": "0x909c5c0",
+    "text": "InputLimitSendFileSize"
+  },
+  {
+    "offset": "0x909c5d8",
+    "text": "InputLimitSendBigFileSize"
+  },
+  {
+    "offset": "0x909c7e0",
+    "text": "clicfg_upload_file_msg_wait_time_limit_xwechat"
+  },
+  {
+    "offset": "0x909c810",
+    "text": "clicfg_upload_file_msg_stop_time_limit_xwechat"
+  },
+  {
+    "offset": "0x909cf38",
+    "text": "clicfg_xwechat_open_large_than_1g_file_send"
+  },
+  {
+    "offset": "0x9156fd1",
+    "text": "mars::magicbox::UploadElement::AddFile"
+  },
+  {
+    "offset": "0x92fb900",
+    "text": "ImageMessageSendSource"
+  },
+  {
+    "offset": "0x92fc1b8",
+    "text": "VideoMessageSendSource"
+  },
+  {
+    "offset": "0x9363f20",
+    "text": "file_sender_list"
+  },
+  {
+    "offset": "0x9432770",
+    "text": "file_msg_send"
+  },
+  {
+    "offset": "0x94327a0",
+    "text": "file_send_type"
+  },
+  {
+    "offset": "0x9518adc",
+    "text": "mars::stn::MMCore::__UploadNetCheckFile"
+  },
+  {
+    "offset": "0x951a178",
+    "text": "virtual mars::stn::UploadFileProcessObserverImpl2::OnResponse"
+  },
+  {
+    "offset": "0x951a1f7",
+    "text": "virtual mars::stn::UploadFileProcessObserverImpl2::UploadFail"
+  },
+  {
+    "offset": "0x951a235",
+    "text": "Upload Netcheck File error, observerId=%0"
+  },
+  {
+    "offset": "0x951a25f",
+    "text": "virtual mars::stn::UploadFileProcessObserverImpl2::UploadSuccess"
+  },
+  {
+    "offset": "0x951a2a0",
+    "text": "Upload Netcheck File success, observerId=%0"
+  },
+  {
+    "offset": "0x9522b8c",
+    "text": "uploadcheckfile"
+  },
+  {
+    "offset": "0x9522b9c",
+    "text": "cneed_upload_check_file:%_, nnetwork:%_"
+  },
+  {
+    "offset": "0x9523065",
+    "text": "mars::magicbox::CmdProcessor::__UploadNetcheckErrFile"
+  },
+  {
+    "offset": "0x9523fbf",
+    "text": "upload files result:%_"
+  },
+  {
+    "offset": "0x952619c",
+    "text": "%_ send fullimg without midimg, fobid wxsignal."
+  },
+  {
+    "offset": "0x952d845",
+    "text": "create MultiPhaseUploadTask failed filekey %_"
+  },
+  {
+    "offset": "0x952dd40",
+    "text": "uploadcheckfileidv2"
+  },
+  {
+    "offset": "0x952dd89",
+    "text": "(anonymous namespace)::InitUploadImageFormat"
+  },
+  {
+    "offset": "0x952f96c",
+    "text": "midimgpath %_ sendfromcdn %_ checkexist %_ smallvideo %_,"
+  },
+  {
+    "offset": "0x953bc70",
+    "text": "essageSendSourceEmoticonMessageSRecordSendSourceChatInputTempAppImageMessageSendVideoMessageSendTextMessageSendSMessageSendSource"
+  },
+  {
+    "offset": "0x9544d78",
+    "text": "send_video_data_thread"
+  },
+  {
+    "offset": "0x95601d8",
+    "text": "image send failed: "
+  },
+  {
+    "offset": "0x9560240",
+    "text": "File message send failed: "
+  },
+  {
+    "offset": "0x95a4630",
+    "text": "message::send_message"
+  },
+  {
+    "offset": "0x95a4658",
+    "text": "message::send_text_message"
+  },
+  {
+    "offset": "0x966f9e0",
+    "text": "kernel::manager::OCRManager::UploadImageCdn"
+  },
+  {
+    "offset": "0x96d2e98",
+    "text": "send video datato engine"
+  },
+  {
+    "offset": "0x9898df0",
+    "text": "virtual mmui::SPSendSourceVideoViewModel::OnClicked"
+  },
+  {
+    "offset": "0x98994b0",
+    "text": "virtual mmui::SPSendSourceImageViewModel::OnClicked"
+  },
+  {
+    "offset": "0x98bd6f0",
+    "text": "file_send_ms"
+  },
+  {
+    "offset": "0x995d01c",
+    "text": "Failed to open upload file: "
+  },
+  {
+    "offset": "0x9962f32",
+    "text": "mars::stn::LongLinkMMTLSProfile::send_mmtls_error_code"
+  },
+  {
+    "offset": "0x9966044",
+    "text": "KVDATAFLOW(file) task send fail, reset reporting status:%_"
+  },
+  {
+    "offset": "0x997076f",
+    "text": "PacketUploadTask::__FillCheckFileidBuffer"
+  },
+  {
+    "offset": "0x9970852",
+    "text": "PacketUploadTask::__HandleCheckFileidResponse"
+  },
+  {
+    "offset": "0x99792a9",
+    "text": "MultiPhaseUploadTask::__CheckToNextFile"
+  },
+  {
+    "offset": "0x99793a1",
+    "text": "cdntask %_ resume upload. file cnt:%_, state %_"
+  },
+  {
+    "offset": "0x997b3a8",
+    "text": "virtual SnsImageMultiDownload::GetDataToSend"
+  },
+  {
+    "offset": "0x997bb38",
+    "text": "virtual SnsImageDownload::GetDataToSend"
+  },
+  {
+    "offset": "0x9ab4ee0",
+    "text": "/cgi-bin/micromsg-bin/uploadvideo"
+  },
+  {
+    "offset": "0x9abc828",
+    "text": "micromsg.UploadVideoRequest"
+  },
+  {
+    "offset": "0x9abc8b8",
+    "text": "micromsg.UploadVideoResponse"
+  },
+  {
+    "offset": "0x9abce48",
+    "text": "micromsg.UploadFileFinishNoticeRequest"
+  },
+  {
+    "offset": "0x9abced8",
+    "text": "micromsg.UploadFileFinishNoticeResponse"
+  },
+  {
+    "offset": "0x9abcf68",
+    "text": "micromsg.SendFileUploadMsgFileInfo"
+  },
+  {
+    "offset": "0x9abcff8",
+    "text": "micromsg.SendFileUploadMsgReq"
+  },
+  {
+    "offset": "0x9abd088",
+    "text": "micromsg.SendFileUploadMsgResp"
+  },
+  {
+    "offset": "0x9acd760",
+    "text": "/cgi-bin/micromsg-bin/sendfileuploadmsg"
+  },
+  {
+    "offset": "0x9ad2148",
+    "text": "send CheckVoiceTransRequest failed"
+  },
+  {
+    "offset": "0x9ad2170",
+    "text": "send UploadVoiceForTransRequest failed"
+  },
+  {
+    "offset": "0x9ad2198",
+    "text": "send GetVoiceTransResRequest failed"
+  },
+  {
+    "offset": "0x9c51731",
+    "text": "<cgi reqid=\"39\" respid=\"1000000039\" nettype=\"1\" netstrategy=\"0\">uploadvideo</cgi>"
+  },
+  {
+    "offset": "0x9c65a30",
+    "text": "cdntask %_ current size: %_ > 0, noneed send midimgdata."
+  },
+  {
+    "offset": "0x9c7e7f8",
+    "text": "sendHeadImg"
+  },
+  {
+    "offset": "0x9c7ef80",
+    "text": "PC file access not authorized. Please send pc_search_file_auth_confirm card to let user agree, then retry."
+  },
+  {
+    "offset": "0x9d9b4bd",
+    "text": "!context->request.upload.begin_formdata.empty() || params.upload_params_.file_path.empty()"
+  },
+  {
+    "offset": "0x9d9b518",
+    "text": "!context->request.upload.end_formdata.empty() || params.upload_params_.file_path.empty()"
+  },
+  {
+    "offset": "0x9d9b74d",
+    "text": "context->request.range_length == context->request.upload.begin_formdata.size() + context->request.upload.filesize + context->request.upload.end_formdata.size()"
+  },
+  {
+    "offset": "0x9e20433",
+    "text": "taskid:%_ upload file path is empty"
+  },
+  {
+    "offset": "0x9e20457",
+    "text": "taskid:%_ upload file path: %_, form data: %_, %_"
+  },
+  {
+    "offset": "0x9e222d8",
+    "text": "task:%s upload file path is empty"
+  },
+  {
+    "offset": "0x9e222fa",
+    "text": "task:%s upload file path: %s, form data: %d, %d"
+  },
+  {
+    "offset": "0x9e2269f",
+    "text": "ctx->io.next_state == CronetUploadState::READ_FILE"
+  },
+  {
+    "offset": "0x9e6eade",
+    "text": "?SetUploadFilePath@HttpWithCronet@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z"
+  },
+  {
+    "offset": "0xb2ac382",
+    "text": "Send Image"
+  },
+  {
+    "offset": "0xb2ac38d",
+    "text": "Send voice message"
+  },
+  {
+    "offset": "0xb2af9de",
+    "text": "Unable to upload image and file at the same time"
+  },
+  {
+    "offset": "0xb2afdde",
+    "text": "File sending interrupted. Send it again."
+  },
+  {
+    "offset": "0xb2b0d00",
+    "text": "Send File"
+  },
+  {
+    "offset": "0xb2b2a8e",
+    "text": "Unable to send the following files; the rest can still be sent."
+  },
+  {
+    "offset": "0xb2b2ae3",
+    "text": "Cannot send files larger than %s."
+  },
+  {
+    "offset": "0xb2b2b91",
+    "text": "Cannot send videos longer than %d minute(s)."
+  },
+  {
+    "offset": "0xb2b2c79",
+    "text": "Sending files is not currently supported"
+  },
+  {
+    "offset": "0xb2b3ef4",
+    "text": "Sending file..."
+  },
+  {
+    "offset": "0xb2b3f04",
+    "text": "The other user is sending the file..."
+  },
+  {
+    "offset": "0xb2bed54",
+    "text": "Upload File"
+  },
+  {
+    "offset": "0xb2bed81",
+    "text": "If the problem persists, you can upload your computer system logs for easier troubleshooting. The uploaded files do not contain any privacy-related information such as chat history, and won't be disclosed."
+  },
+  {
+    "offset": "0xb2bf4fd",
+    "text": "Cannot send a file with a size of 0 KB."
+  },
+  {
+    "offset": "0xb2bf559",
+    "text": "Send Full Video"
+  },
+  {
+    "offset": "0xb2bf587",
+    "text": "Send voice (hold right "
+  },
+  {
+    "offset": "0xb2bf5c1",
+    "text": "Send Voice"
+  },
+  {
+    "offset": "0xb2bf5cc",
+    "text": "Send Voice Message"
+  },
+  {
+    "offset": "0xb2bf5df",
+    "text": "Send Voice"
+  },
+  {
+    "offset": "0xb2bf5f7",
+    "text": "Send voice (hold right Alt)"
+  },
+  {
+    "offset": "0xb2c44e2",
+    "text": "Sending voice message, release to send, or press Esc/Backspace to cancel"
+  },
+  {
+    "offset": "0xb2c4864",
+    "text": "Sending a voice message... Try again later."
+  },
+  {
+    "offset": "0xb2c4f14",
+    "text": "Unable to send voice message"
+  },
+  {
+    "offset": "0xb2c6cf1",
+    "text": "- Send voice messages"
+  },
+  {
+    "offset": "0xb2c6d1f",
+    "text": "- Send voice messages"
+  },
+  {
+    "offset": "0xb2c6f99",
+    "text": "- Send photos and videos as a combined message"
+  },
+  {
+    "offset": "0xb2c7020",
+    "text": "- Send photos and videos as a combined message"
+  },
+  {
+    "offset": "0xb2c7077",
+    "text": "- Use voice input and send voice messages"
+  },
+  {
+    "offset": "0xb2c70bf",
+    "text": "- Combine images and videos after sending"
+  },
+  {
+    "offset": "0xb2c7134",
+    "text": "- Send photos and videos as a combined message"
+  },
+  {
+    "offset": "0xb2c718b",
+    "text": "- Send photos and videos as a combined message"
+  },
+  {
+    "offset": "0xb3a161c",
+    "text": "OnSendFile"
+  },
+  {
+    "offset": "0xb3a16e2",
+    "text": "OnSendFile"
+  }
+]

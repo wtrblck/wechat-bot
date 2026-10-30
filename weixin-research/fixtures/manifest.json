@@ -1,0 +1,42 @@
+[
+  {
+    "name": "wxbot-audio.wav",
+    "size": 8044,
+    "sha256": "a213cbd922c1b5192daa52a555b7ae7c9536ef35ba5ceb267be27b980d0266b7"
+  },
+  {
+    "name": "wxbot-file.txt",
+    "size": 53,
+    "sha256": "27f1eb81d406684cc7dc583ed1736d8299af86483a2c1dcba71d5a2da208e9ed"
+  },
+  {
+    "name": "wxbot-image.png",
+    "size": 457,
+    "sha256": "6a52e04838ce3199209b31ff375b77d512ea351f006a8cdb1f710b2836e249ea"
+  },
+  {
+    "name": "wxbot-video.avi",
+    "size": 230752,
+    "sha256": "2d69e1c80e02c76af9cfd9fcb3261a668a5b75b4aff8cd4b42dd07f94ef906ba"
+  },
+  {
+    "name": "wxbot-video.mp4",
+    "size": 3040,
+    "sha256": "be7ff200260f99cf0fc868e4910e8919b0fa2d6c5b6aef25693c9c220cedccc3"
+  },
+  {
+    "name": "wxbot-voice-decoded.wav",
+    "size": 32044,
+    "sha256": "681786d56471e6b4b38b87f29909bd8f4e7ea1704dc4ac63b2ffdc2bdc9234f2"
+  },
+  {
+    "name": "wxbot-voice.silk",
+    "size": 2379,
+    "sha256": "9e2fe2ee362e65ad67f7f9c47c9abf43b9a6fe8cf43a173fbb66f19343049a29"
+  },
+  {
+    "name": "wxbot-voice.wav",
+    "size": 32044,
+    "sha256": "54345220a82b7d698e91d3617bfc56948d8898ffa20ce0de99985c45faeb2fd7"
+  }
+]

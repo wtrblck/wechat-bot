@@ -1,0 +1,39 @@
+# Complete, dedicated profile. Do not layer this over a desktop tool profile.
+- insert:
+    - id: llm
+      name: '@deepseek-ai/dsh-llm'
+    - id: session
+      name: '@deepseek-ai/dsh-session'
+    - id: wechat-attachments
+      name: '@deepseek-ai/dsh-attachment-local'
+      config:
+        dshHome: !!js dshHomePath()
+        maxImageBytes: 10485760
+        maxImageDimension: 8192
+    - id: session-projection
+      name: '@deepseek-ai/dsh-session-projection'
+    - id: agent
+      name: '@deepseek-ai/dsh-agent'
+    - id: tools
+      name: '@deepseek-ai/dsh-tools'
+      config:
+        mode: native
+    - id: system-prompt
+      name: '@deepseek-ai/dsh-system-prompt'
+      config:
+        includeHarnessIdentity: false
+        includeRuntimeContext: false
+    - id: persistence
+      name: '@deepseek-ai/dsh-session-persistence-jsonl'
+      config:
+        root: !!js dshHomePath('sessions')
+        compression: none
+    - id: checkpoint
+      name: '@deepseek-ai/dsh-session-checkpoint-policy'
+    - id: agent-loop
+      name: '@deepseek-ai/dsh-agent-loop'
+      config:
+        agents: []
+    - id: wechat-agent
+      name: '@wechat-bot/dsh-channel'
+# Configure your chosen official dsh model adapter in the profile patch.
