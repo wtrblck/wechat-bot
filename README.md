@@ -33,12 +33,14 @@ git clone https://github.com/wtrblck/wechat-bot.git
 cd wechat-bot
 py -3.14 -m pip install --target weixin-research/deps -r weixin-research/requirements.txt
 cd agent
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm run setup
 cd ..
 ```
 
 `pnpm run setup` 交互式填写本人微信ID、数据库根目录和账号目录、允许的联系人及群、微信DLL路径，以及可选的授权联系人。它生成被 Git 忽略的本地配置、独立 dsh profile 和桥接白名单。已有配置不会覆盖。
+
+安装时显式忽略依赖构建脚本；当前渠道不使用 dsh 的 PTY 或本地命令执行能力。该安装方式已通过完整测试，也避免 pnpm 11 在未批准可选依赖构建时退出失败。
 
 在管理员 PowerShell 中设置模型凭据后启动：
 
