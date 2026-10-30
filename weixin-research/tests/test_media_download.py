@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from media_download import DownloadQueue, validate_event, config_for
 from media_receive import decode_wxgf, media_metadata
 from policy import ObservePolicy
+from offline_native import PinnedImage, manifest
 import test_media_receive as media_tests
 field = media_tests.field
 
@@ -23,6 +24,10 @@ def event():
 
 class DownloadTest(unittest.TestCase):
     def setUp(self):
+        for target, replacement in [('media_download.make_config', manifest), ('media_download.PEImage', PinnedImage)]:
+            guard = patch(target, replacement)
+            guard.start()
+            self.addCleanup(guard.stop)
         self.policy = ObservePolicy(targets=('contact',), prefix='')
 
     def test_exact_ids_and_observe_incoming_scope(self):
@@ -44,6 +49,13 @@ class DownloadTest(unittest.TestCase):
         rendered = render_source(config)
         self.assertIn('close_download', rendered)
         self.assertIn('future_state_invalid', rendered)
+
+    def test_wrong_native_function_entry_still_fails_manifest_validation(self):
+        image = PinnedImage()
+        image.owner = lambda rva: dict(begin=rva + 1)
+        with patch('media_download.PEImage', return_value=image):
+            with self.assertRaisesRegex(ValueError, 'invalid_download_profile'):
+                config_for(event(), self.policy)
 
     def test_serial_bounded_deduplication_and_shutdown(self):
         entered, release = threading.Event(), threading.Event()

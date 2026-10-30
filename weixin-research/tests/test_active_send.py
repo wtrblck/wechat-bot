@@ -1,4 +1,5 @@
 import sys
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,22 +8,12 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import active_send
 from policy import PolicyError, SendPolicy
-
-
-class PinnedImage:
-    sha256 = active_send.SHA256
-    def __init__(self, path): pass
-    def owner(self, rva): return dict(begin=rva)
-    def section_at(self, rva, size): return dict(flags=0x20000000)
-    def read_rva(self, rva, size): return b'\x90' * size
+from offline_native import patch_sender
 
 
 class ActiveSendValidationTest(unittest.TestCase):
     def setUp(self):
-        self.image_patch = patch.object(active_send, 'PEImage', PinnedImage)
-        self.config_patch = patch.object(active_send, 'make_config', lambda **kw: dict(sites=[], **kw))
-        self.image_patch.start(); self.config_patch.start()
-        self.addCleanup(self.image_patch.stop); self.addCleanup(self.config_patch.stop)
+        patch_sender(self)
         self.fixtures = active_send.ROOT / 'fixtures'
         self.policy = SendPolicy(recipients=('filehelper', 'wxid_test_contact'))
 
@@ -91,7 +82,10 @@ class ActiveSendValidationTest(unittest.TestCase):
             active_send.config_for('video', path=self.fixtures / 'wxbot-video.avi', policy=self.policy)
 
     def test_voice_silk_duration_is_derived_and_payload_is_binary(self):
-        config = active_send.config_for('voice', path=self.fixtures / 'wxbot-voice.silk', policy=self.policy)
+        data = (self.fixtures / 'wxbot-voice.silk').read_bytes()
+        # SDK decoding is a separate native integration, not a portable unit test.
+        with patch.object(active_send, 'voice_worker', return_value=dict(sha256=hashlib.sha256(data).hexdigest(), duration_ms=1000)):
+            config = active_send.config_for('voice', path=self.fixtures / 'wxbot-voice.silk', policy=self.policy)
         request = config['active_experiment']
         self.assertEqual(request['duration_ms'], 1000)
         self.assertIn(0, request['voice_bytes'])
@@ -111,6 +105,17 @@ class ActiveSendValidationTest(unittest.TestCase):
         names = {item['name']: item['rva'] for item in config['active_experiment']['functions']}
         self.assertEqual(names['narrow_assign'], 0x1F9AD0)
         self.assertEqual(names['wide_assign'], 0x9B5E0)
+
+
+class NativeVersionGuardTest(unittest.TestCase):
+    def test_production_pinned_image_rejects_wrong_hash_without_loading_wechat(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            dll = Path(directory) / 'fixture.dll'
+            dll.write_bytes(b'not the matching WeChat image')
+            with patch.object(active_send, 'DLL', dll), patch.object(active_send, 'PEImage', return_value=SimpleNamespace(sha256='0' * 64)):
+                with self.assertRaisesRegex(ValueError, 'Pinned DLL changed'):
+                    active_send.pinned_image()
 
 
 if __name__ == '__main__':

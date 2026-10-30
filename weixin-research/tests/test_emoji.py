@@ -112,6 +112,8 @@ class EmojiResourceTest(unittest.TestCase):
 
 class EmojiIntegrationTest(unittest.TestCase):
     def setUp(self):
+        from offline_native import patch_sender
+        patch_sender(self)
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
         self.data=gif();self.identifier=hashlib.md5(self.data).hexdigest()
         conn=sqlite3.connect(self.root/'emoticon.db')
