@@ -1,3 +1,27 @@
+# --- local editor / tool state ---
+.claude/
+
+# --- generated or downloaded artifacts ---
+node_modules/
+.pnpm-store/
+agent/dist/
+agent/data/
+agent/workspaces/
+agent/research/
+agent/tools/video-python/
+release/
+backups/
+sticker-candidates/
+weixin-research/deps/
+weixin-research/downloads/
+weixin-research/runs/
+weixin-research/tests/build/
+weixin-research/*.generated.js
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# --- local configuration and secrets ---
 .env
 .env.*
 !.env.example
@@ -5,29 +29,23 @@
 *.local.yaml
 *.local.yml
 *.credentials.*
+agent/config/*.cookies.local.txt
+
+# --- runtime data ---
 **/runs/
-agent/data/
-agent/workspaces/
-agent/research/
 *.sqlite
 *.sqlite-*
 *.db
 *.db-*
 *.log
-node_modules/
-.pnpm-store/
-agent/dist/
-weixin-research/deps/
-weixin-research/downloads/
-weixin-research/tests/build/
-weixin-research/*.generated.js
-__pycache__/
-*.py[cod]
-.pytest_cache/
+
+# --- binaries ---
 *.exe
 *.dll
 *.pdb
 *.zip
-release/
+*.whl
+
+# --- OS ---
 .DS_Store
 Thumbs.db

@@ -27,6 +27,16 @@ extern unsigned char emoji_record[], emoji_control_vtable[];
 extern void *emoji_new_fn(uint64_t);
 extern void *emoji_construct_fn(void *, const void *);
 extern void *emoji_factory_fn(void *);
+#ifdef ENABLE_LOCAL_EMOJI
+/* RVA 0x6978540: synchronous cache import. rcx is unused; rdx points to a
+ * borrowed pair whose object holds MD5 +0 and std::wstring path +0x40.
+ * No input pointer escapes this call (local-emoticon-import*.asm). */
+extern unsigned char emoji_import_fn(void *, void **);
+extern void *local_emoji_input[];
+extern void *emoji_local_copy_fn(void *, const void *);
+extern unsigned char local_emoji_control_vtable[], local_emoji_resource_vtable[];
+extern uint32_t local_emoji_size;
+#endif
 #endif
 typedef struct {
     volatile int state; /* 0 armed, 1 executing, 2 finished, 3 cancelled */
@@ -99,6 +109,7 @@ void on_checkpoint_leave(GumInvocationContext *context) {
     void *root[2] = {0}, *core[2] = {0}, *manager[2] = {0}, *message[2] = {0};
 #ifdef ENABLE_EMOJI
     void *emoji_resource[2] = {0};
+    void *local_resource[2] = {0};
 #endif
     job.phase = 1; context_fn(root);
     if (!pair_valid(root)) { job.error = 1; goto cleanup; }
@@ -143,6 +154,13 @@ void on_checkpoint_leave(GumInvocationContext *context) {
     }
     else if (job.kind == 6) {
 #ifdef ENABLE_EMOJI
+#ifdef ENABLE_LOCAL_EMOJI
+        if (job.reserved[0] && !emoji_import_fn(0, local_emoji_input)) {
+            job.error = 14; goto cleanup;
+        }
+#else
+        if (job.reserved[0]) { job.error = 14; goto cleanup; }
+#endif
         /* Exact native make_shared layout from 0x6977344 -> 0x20A2800:
          * 0x1f0 allocation, native control vtable, strong/weak = 1, object +16.
          * The native constructor copies every borrowed database string. */
@@ -158,6 +176,49 @@ void on_checkpoint_leave(GumInvocationContext *context) {
             !verify_narrow(control + 16 + 0x70, emoji_record + 0x40)) {
             job.error = 11; goto cleanup;
         }
+#ifdef ENABLE_LOCAL_EMOJI
+        if (job.reserved[0]) {
+            /* EmoticonMessageHandler vtable +0x78 -> 0x5AF3320:
+             * when the upload buffer at message+0x768 is empty, +0x130
+             * (wstring length) gates the local file read at 0x5AF373A.
+             * Importing the display cache alone leaves this path empty and
+             * cannot upload an unknown hash. Copy the staged path into the
+             * message with the same native owned-string ABI as image sends. */
+            uint64_t path_header[4], source_path[4];
+            unsigned char *path_field = (unsigned char *)message[0] + 0x120;
+            if (!read_at(path_field, path_header, 32) || path_header[2] || path_header[3] != 7 ||
+                !read_at(wide_path, source_path, 32) || !source_path[2]) {
+                job.error = 17; goto cleanup;
+            }
+            wide_assign_fn(path_field, wide_path);
+            if (!read_at(path_field, path_header, 32) || path_header[2] != source_path[2]) {
+                job.error = 17; goto cleanup;
+            }
+            /* 0x487BBE6 and 0x22FD932 allocate 0x1e0. 0x22FC160 is a
+             * COPY constructor: its source must be a fully constructed native
+             * resource (including its virtual size getter), never a record or
+             * local-path buffer. The prior experiment violated that ABI.
+             * Keep its native resource ownership and length alongside the
+             * message's actual local upload path. */
+            if (!local_emoji_size) { job.error = 15; goto cleanup; }
+            unsigned char *owned = emoji_new_fn(0x1e0);
+            if (!owned) { job.error = 10; goto cleanup; }
+            *(void **)owned = local_emoji_control_vtable;
+            *(uint32_t *)(owned + 8) = 1; *(uint32_t *)(owned + 12) = 1;
+            emoji_local_copy_fn(owned + 16, emoji_resource[0]);
+            local_resource[0] = owned + 16; local_resource[1] = owned;
+            if (*(void **)(owned + 16) != local_emoji_resource_vtable ||
+                !verify_narrow(owned + 16 + 0x10, emoji_record)) {
+                job.error = 16; goto cleanup;
+            }
+            /* Native subtype's +0x30 virtual getter reads DWORD +0x1c8;
+             * its debug serializer identifies this as "length". */
+            *(uint32_t *)(owned + 16 + 0x1c8) = local_emoji_size;
+            release_pair(emoji_resource);
+            emoji_resource[0] = local_resource[0]; emoji_resource[1] = local_resource[1];
+            local_resource[0] = local_resource[1] = 0;
+        }
+#endif
         void **target = (void **)((unsigned char *)message[0] + 0x758);
         if (target[0] || target[1]) { job.error = 12; goto cleanup; }
         target[0] = emoji_resource[0]; target[1] = emoji_resource[1];
@@ -199,6 +260,7 @@ void on_checkpoint_leave(GumInvocationContext *context) {
     release_pair((void **)(job.result + 0x28));
 cleanup:
 #ifdef ENABLE_EMOJI
+    release_pair(local_resource);
     release_pair(emoji_resource);
 #endif
     release_pair(message); release_pair(manager); release_pair(core); release_pair(root);

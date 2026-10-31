@@ -70,14 +70,14 @@ rpc.exports.dispatch = function () {
     job.add(12).writeU32({context:0, text:1, image:2, file:3, video:4, voice:5, emoji:6}[request.kind]);
     const extraBindings = {};
     if (request.kind === 'emoji') {
-      if (![1,2,3].includes(request.emoji_type)) throw new Error('Invalid emoji type');
+      if (!(request.local_emoji ? request.emoji_type === 4 : [1,2,3].includes(request.emoji_type))) throw new Error('Invalid emoji type');
       const record = fresh(0x1c0);
       const fields = {md5:0, product_id:0x20, aes_key:0x40, thumb_url:0x60, tp_url:0x80,
         auth_key:0xa0, cdn_url:0xc0, extern_url:0xe0, extern_md5:0x100, encrypt_url:0x128,
         designer_id:0x148, activity_id:0x168, caption:0x188};
       for (const [field, offset] of Object.entries(fields)) {
-        const bytes = activeBytes((request.emoji_fields || {})[field], 'emoji field', 4096);
-        if ((field === 'md5' || field === 'aes_key') && bytes.length !== 32) throw new Error('Invalid emoji identity/key');
+        const bytes = activeBytes((request.emoji_fields || {})[field] || [], 'emoji field', 4096);
+        if (field === 'md5' && bytes.length !== 32 || field === 'aes_key' && bytes.length !== (request.local_emoji ? 0 : 32)) throw new Error('Invalid emoji identity/key');
         const value = stringFromBytes(bytes);
         record.add(offset).writeByteArray(value.readByteArray(32));
       }
@@ -102,6 +102,20 @@ rpc.exports.dispatch = function () {
     else wide.writePointer(wideBuffer);
     wide.add(16).writeU64(wideLength); wide.add(24).writeU64(wideLength < 8 ? 7 : wideLength);
     activeKeepAlive.push(wideBuffer);
+    if (request.local_emoji) {
+      if (request.kind !== 'emoji' || request.emoji_type !== 4 || !request.path) throw new Error('Invalid local emoji');
+      const input = fresh(96), pair = fresh(16);
+      input.writeByteArray(stringFromBytes(activeBytes(request.emoji_fields.md5, 'md5', 32)).readByteArray(32));
+      input.add(64).writeByteArray(wide.readByteArray(32));
+      pair.writePointer(input);
+      job.add(20).writeU32(1);
+      if (!Number.isInteger(request.local_emoji_size) || request.local_emoji_size < 1 || request.local_emoji_size > 64*1024*1024) throw new Error('Invalid local emoji length');
+      const size = fresh(4); size.writeU32(request.local_emoji_size);
+      Object.assign(extraBindings, {emoji_import_fn:address('emoji_import'), local_emoji_input:pair,
+        emoji_local_copy_fn:address('emoji_local_copy'), local_emoji_size:size,
+        local_emoji_control_vtable:targetModule.base.add(request.local_emoji_control_vtable),
+        local_emoji_resource_vtable:targetModule.base.add(request.local_emoji_resource_vtable)});
+    }
     const worker = new CModule(request.thread_source, {
       ...extraBindings, job, text_string:stringFromBytes(text), recipient_string:stringFromBytes(recipient),
       context_fn:address('context'), core_fn:address('core'), manager_fn:address('manager'),
@@ -140,7 +154,7 @@ rpc.exports.dispatch = function () {
         const accepted = status === 2 && error === 0 && (request.kind === 'context' ||
           output.readU32() === 0 && output.add(4).readU32() === 0);
         const detailLength = job.add(160).readU32();
-        const detail = request.kind !== 'emoji' && detailLength > 0 && detailLength <= 512 ? job.add(164).readUtf8String(detailLength) : null;
+        const detail = (request.kind !== 'emoji' || request.local_emoji) && detailLength > 0 && detailLength <= 512 ? job.add(164).readUtf8String(detailLength) : null;
         resolve({event:'active_send_result', kind:request.kind, accepted, native_error:error,
           detail,
           phase:job.add(4).readU32(), thread_id:job.add(16).readU32(), job_state:status,

@@ -34,6 +34,12 @@ export const ConfigSchema = z.strictObject({
       memberMode: z.literal('all_in_allowed_group').default('all_in_allowed_group'), sessionScope: z.literal('group').default('group'), trigger: z.literal('autonomous').default('autonomous') }) }),
   participation: participation.default({ debounceMs: 2000, maxBatchWaitMs: 8000, cooldownSeconds: 30, maxRepliesPerMinute: 2, maxWaitRetries: 1, decisionContextTokens: 2000, maxDecisionsPerMinute: 6 }),
   sessions: z.strictObject({ isolation: z.literal('conversation'), crossSessionMemory: z.literal(false) }).default({ isolation: 'conversation', crossSessionMemory: false }),
+  social: z.strictObject({ enabled: z.boolean().default(true), toneMinutes: int(1, 120, 30), careCooldownHours: int(1, 168, 24),
+    proactive: z.strictObject({ enabled: z.boolean().default(false), contacts: z.array(id).max(100).default([]),
+      maxPerContactPerDay: int(1, 3, 1), minIdleMinutes: int(1, 1440, 30),
+      quietStartHour: int(0, 23, 22), quietEndHour: int(0, 23, 9),
+    }).prefault({}),
+  }).prefault({}),
   prompts: prompts.default({ profile: 'default' }),
   promptProfiles: z.record(z.string(), prompts.extend({ extends: z.string().optional() })).default({}),
   conversationOverrides: z.strictObject({ groups: z.record(z.string(), override).default({}), contacts: z.record(z.string(), override).default({}) }).default({ groups: {}, contacts: {} }),
@@ -49,6 +55,22 @@ export const ConfigSchema = z.strictObject({
     ttlHours: int(1, 168, 24), maxImagesPerReply: int(1, 12, 6),
   }).prefault({}),
   sandbox: z.strictObject({ directory: z.literal('data/sandbox').default('data/sandbox') }).default({ directory: 'data/sandbox' }),
+  video: z.strictObject({ enabled: z.boolean().default(true), python: z.string().default('py'),
+    maxInputMiB: int(10, 512, 128), maxDurationSeconds: int(10, 14400, 3600),
+    timeoutSeconds: int(10, 240, 90), frames: int(4, 16, 12),
+    bilibili: z.boolean().default(true), douyin: z.boolean().default(true),
+    bilibiliCookies: z.string().default('config/bilibili.cookies.local.txt'),
+    douyinCookies: z.string().default('config/douyin.cookies.local.txt'),
+    asr: z.strictObject({ backend: z.enum(['local', 'endpoint', 'off']).default('local'),
+      localModel: z.string().default('data/video-models/faster-whisper-base'),
+      endpoint: z.string().url().optional(), model: z.string().default('whisper-1'),
+      apiKeyEnv: z.string().regex(/^[A-Z][A-Z0-9_]*$/).default('VIDEO_ASR_API_KEY'),
+      maxSeconds: int(10, 600, 180),
+    }).prefault({}),
+  }).prefault({}),
+  stickers: z.strictObject({ enabled: z.boolean().default(true), directory: z.string().trim().min(1).max(1024).default('data/stickers'),
+    maxFiles: int(1, 2000, 512), maxFileMiB: int(1, 10, 10),
+  }).prefault({}),
   externalAccess: z.strictObject({ enabled: z.boolean().default(false), approver: id.optional(),
     timeoutSeconds: int(10, 300, 120), maxFileMiB: int(1, 10, 10),
   }).prefault({}),
@@ -83,6 +105,7 @@ export function validateConfig(data: unknown, root: string): Config {
   if (value.memory.priorityMessages < value.memory.batchMessages) throw Error('summary_priority_below_batch');
   if (value.access.group.allow.some(v => !v.endsWith('@chatroom'))) throw Error('群 ID 必须以 @chatroom 结尾');
   if (value.access.direct.allow.some(v => v.endsWith('@chatroom'))) throw Error('私聊白名单不能包含群');
+  if (value.social.proactive.contacts.some(v => !value.access.direct.allow.includes(v) || v === value.account.selfId)) throw Error('proactive_contact_not_allowed');
   if (value.externalAccess.enabled && (!value.externalAccess.approver || !value.access.direct.allow.includes(value.externalAccess.approver) || value.externalAccess.approver === value.account.selfId)) throw Error('external_approver_not_allowed');
   return { ...value, root: realpathSync(root), version: JSON.stringify(value) };
 }

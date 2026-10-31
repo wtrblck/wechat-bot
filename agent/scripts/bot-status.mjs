@@ -23,7 +23,8 @@ export function readAgentStatus(file, now = Date.now()) {
     const running = leaseFresh;
     const ready = running && alive && status.owner === lease.owner && status.state === 'running' && Math.abs(now - status.updated) < 15000;
     const owned = status?.owner === lease?.owner;
-    return { running, ready, state: running ? owned ? alive ? status.state : 'lease_wait' : 'starting' : 'stopped', pid: running && owned ? status.pid : null,
+    const started = running && alive && owned && Math.abs(now - status.updated) < 15000 && ['running','budget_exhausted','budget_blocked'].includes(status.state);
+    return { running, ready, started, state: running ? owned ? alive ? status.state : 'lease_wait' : 'starting' : 'stopped', pid: running && owned ? status.pid : null,
       lastUpdate: status?.updated ?? null, diagnostics: status?.diagnostics ?? [] };
   } finally { db.close(); }
 }

@@ -77,7 +77,7 @@ Invoke-RestMethod "$($senderSession.url)/send/text" -Method Post -Headers $sende
 | `POST /send/voice` | `request_id`, `recipient`, `path` | 同上，16 kHz/单声道/16-bit PCM WAV 自动编码，或 Tencent SILK v3 |
 | `POST /send/emoji` | `request_id`, `recipient`, `emoji_id` | 服务加 `--emoji` 启用；ID 必须来自当前账号收藏列表，不接受客户端地址/密钥/路径 |
 
-`recipient` 是显式参数，会一路传到原生调用的 `+0xB0`；是否允许由发送策略统一决定，默认只允许 `filehelper`，最多 128 UTF-8 字节，未配置的目标返回 403 `recipient_not_allowed`。`path` 是现有测试文件的完整路径，例如 `weixin-research/fixtures/wxbot-video.mp4`。图片发送与图片文件附件、视频消息与视频文件附件分别使用不同消息类型。
+`recipient` 是显式参数，会一路传到原生调用的 `+0xB0`；是否允许由发送策略统一决定，默认只允许 `filehelper`，最多 128 UTF-8 字节，未配置的目标返回 403 `recipient_not_allowed`。`path` 是现有测试文件的完整路径，例如 `E:/projects/wechat-bot/weixin-research/fixtures/wxbot-video.mp4`。图片发送与图片文件附件、视频消息与视频文件附件分别使用不同消息类型。
 
 语音示例：把下面 JSON 以相同的令牌提交到 `POST /send/voice`。`duration_ms` 由音频内容计算，客户端不填写。
 
@@ -85,7 +85,7 @@ Invoke-RestMethod "$($senderSession.url)/send/text" -Method Post -Headers $sende
 {
   "request_id": "voice-test-001",
   "recipient": "filehelper",
-  "path": "weixin-research/fixtures/wxbot-voice.wav"
+  "path": "E:/projects/wechat-bot/weixin-research/fixtures/wxbot-voice.wav"
 }
 ```
 
@@ -151,7 +151,7 @@ py -3.14 weixin-research/make_fixtures.py
 # 用 Windows Media Foundation 生成 H.264 MP4，再刷新清单
 New-Item -ItemType Directory -Force weixin-research/tests/build | Out-Null
 g++ -O2 -municode weixin-research/tests/generate_video.cpp -o weixin-research/tests/build/generate-video.exe -lole32 -lmfreadwrite -lmfplat -lmfuuid
-weixin-research/tests/build/generate-video.exe weixin-research/fixtures/wxbot-video.mp4
+weixin-research/tests/build/generate-video.exe E:/projects/wechat-bot/weixin-research/fixtures/wxbot-video.mp4
 py -3.14 weixin-research/make_fixtures.py
 ```
 

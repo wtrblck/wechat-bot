@@ -13,6 +13,8 @@ SITES = dict(PROFILE['sites'])
 SEND_FUNCTIONS = dict(PROFILE['send'])
 DOWNLOAD_FUNCTIONS = dict(PROFILE['download'])
 EMOJI_VTABLE = PROFILE['emoji']['control_vtable']
+LOCAL_EMOJI_CONTROL = PROFILE['emoji'].get('local_control_vtable')
+LOCAL_EMOJI_RESOURCE = PROFILE['emoji'].get('local_resource_vtable')
 DOWNLOAD_RESULT_VTABLE = PROFILE['download_result_vtable']
 
 

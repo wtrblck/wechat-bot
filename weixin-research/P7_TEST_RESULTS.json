@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-29",
+  "scope": "P7 general media input, version profile and engineering contract",
+  "media_input": {
+    "roots": "WECHAT_BOT_MEDIA_ROOTS, default weixin-research/fixtures",
+    "default_media_bytes": 2097152,
+    "max_media_bytes": 67108864,
+    "staging": "runs/media-staging/<uuid>/; 1-hour TTL; hash of staged bytes is what the native layer receives",
+    "fixture_manifest": "still enforced for fixtures/wxbot-*",
+    "images": {
+      "inputs": ["png", "jpeg", "gif", "webp"],
+      "sent_as": "png",
+      "conversion": "Pillow first frame, <= 50 million pixels",
+      "tested": ["png passthrough", "jpeg -> png", "unsupported container rejected", "empty/oversize/outside-root rejected"]
+    },
+    "files": "any regular file inside a configured root, bounded by media_bytes",
+    "voice": {
+      "inputs": ["wav", "silk", "mp3 (ffmpeg)"],
+      "normalisation": "8/16/24/32-bit, 1-2 channels, 8-48 kHz -> mono 16 kHz 16-bit, 20 ms frame padding",
+      "tested": ["44.1 kHz stereo -> 16 kHz mono", "SILK container validation", "MP3 -> WAV via bundled ffmpeg"]
+    },
+    "video": {
+      "inputs": ["mp4"],
+      "conversion": "optional H.264/AAC MP4 via bundled ffmpeg when WECHAT_BOT_VIDEO_CONVERT=1",
+      "tested": ["AVI fixture -> MP4 (ftyp verified)"]
+    },
+    "errors": ["media_outside_allowed_roots", "media_not_found", "invalid_media_path", "media_empty", "media_too_large", "image_format_unsupported", "image_format_not_allowed", "image_decode_failed", "audio_format_unsupported", "audio_sample_rate_unsupported", "audio_duration_out_of_range", "video_format_unsupported", "media_conversion_failed", "fixture_manifest_mismatch"]
+  },
+  "version_profile": {
+    "file": "weixin-research/versions/4.1.15.56.json",
+    "fields": ["dll", "sha256", "sites", "send", "download", "emoji control vtable", "download result vtable"],
+    "rejected": ["missing file", "invalid JSON", "missing required keys", "empty function sections"],
+    "environment_override": "WECHAT_BOT_PROFILE",
+    "note": "Offsets are evidence per SHA256; they are never inferred from a version string."
+  },
+  "engineering": {
+    "config": "environment + optional JSON (--config); unknown keys rejected; token, logs, caches and state under runs/",
+    "logging": "rotating runs/bridge/bridge.jsonl, 10 MiB x 5; no message text or media bytes",
+    "http_contract": "BRIDGE_SERVICE.md includes routes, states, error codes and examples",
+    "tests": {
+      "media_input": 8,
+      "version_profile": 2,
+      "bridge_config": 5,
+      "full_suite": 118
+    }
+  },
+  "limitations": [
+    "JPEG/GIF/WebP are converted before the native call, so the device-verified PNG path is preserved; the conversion itself is local-only evidence.",
+    "Video/MP3 conversion depends on the bundled ffmpeg and is optional; it has no real-device acceptance yet.",
+    "Media send limit defaults to 2 MiB; sizes above that are configurable but unverified on a phone.",
+    "High-resolution original image download remains outside P7 and is still not claimed."
+  ]
+}
+
+

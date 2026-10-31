@@ -46,7 +46,9 @@ test('artifact output is idempotent, rejects mutation, and cleanup preserves ref
     assert.equal(existsSync(first.path), false);
   } finally { store.close(); const rel = relative(tmpdir(), root); assert.ok(rel && !rel.startsWith('..') && !isAbsolute(rel)); rmSync(root, { recursive: true, force: true }); }
 });
-test('prompt updates switch at boundaries, and invalid edits retain the last validated version', () => {
+test('prompt updates switch at boundaries, and invalid edits retain the last validated version', t => {
+  // Template output includes local_time; crossing a clock second is not a reload.
+  t.mock.timers.enable({ apis: ['Date'], now });
   const root = mkdtempSync(join(tmpdir(), 'wechat-prompt-')); const c = { ...config(), root };
   cpSync(join(agentRoot, 'prompts'), join(root, 'prompts'), { recursive: true });
   const store = new Store(c, ':memory:', () => now);

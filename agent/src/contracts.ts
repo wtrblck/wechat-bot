@@ -16,8 +16,10 @@ export interface Session { key: string; id: string; generation: number; conversa
 export interface Decision {
   action: 'reply' | 'wait' | 'silent'; reason: string; sourceMessageIds: string[];
   topicId: string; replyToSenderId: string;
+  tone?: { state: 'light' | 'serious' | 'quiet' | 'neutral'; sourceMessageId: string };
 }
 export interface HostInput {
+  proactive?: boolean;
   replyFormat?: 'messages-v1';
   inputId: string; executionId: string; session: Session; purpose: 'reply' | 'decision' | 'memory';
   system: string; context: string; provider: string; model: string;
@@ -28,6 +30,7 @@ export interface HostResult { status: 'completed' | 'cancelled' | 'failed' | 'ne
 export interface HostAdapter {
   imageAttachment?(input: HostInput, data: Uint8Array, mediaType: ImageBlock['attachment']['mediaType'], name: string,
     signal: AbortSignal): Promise<ImageBlock['attachment']>;
+  setTrace?(observe: (inputId: string, event: import('./storage/trace.js').TraceObservation, key?: string) => void): void;
   setBudget?(budget: DailyBudget): void;
   available?(provider: string): boolean;
   execute(input: HostInput, signal: AbortSignal): Promise<HostResult>;

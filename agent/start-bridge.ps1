@@ -4,6 +4,12 @@
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+# Keep native helper extraction on the project's drive. A full system TEMP
+# otherwise prevents the bridge from attaching even when project storage is free.
+$bridgeTemp = Join-Path $projectRoot 'weixin-research/runs/runtime-temp'
+New-Item -ItemType Directory -Path $bridgeTemp -Force | Out-Null
+$env:TEMP = $bridgeTemp
+$env:TMP = $bridgeTemp
 $policyPath = Join-Path $projectRoot 'weixin-research/runs/bridge-policy.local.json'
 $configPath = Join-Path $projectRoot 'weixin-research/runs/bridge.local.json'
 if (!(Test-Path -LiteralPath $policyPath) -or !(Test-Path -LiteralPath $configPath)) {

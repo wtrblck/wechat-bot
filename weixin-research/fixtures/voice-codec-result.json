@@ -1,0 +1,9 @@
+{
+  "codec_sha256": "ec7cfdbc32842111be3287753832559c0403a79a3042a3a9ae57dd3908bc225c",
+  "encoded_size": 2379,
+  "packets": 50,
+  "duration_ms": 1000,
+  "decoded_samples": 16000,
+  "round_trip_passed": true,
+  "sha256": "9e2fe2ee362e65ad67f7f9c47c9abf43b9a6fe8cf43a173fbb66f19343049a29"
+}

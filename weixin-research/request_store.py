@@ -32,7 +32,7 @@ ALLOWED = {
     QUEUED: {SENDING, FAILED, CANCELLED, UNKNOWN},
     SENDING: {LOCAL_ACCEPTED, FAILED, UNKNOWN},
     LOCAL_ACCEPTED: {MESSAGE_RECORDED, SERVER_CONFIRMED, UNKNOWN, FAILED},
-    MESSAGE_RECORDED: {SERVER_CONFIRMED, UNKNOWN},
+    MESSAGE_RECORDED: {SERVER_CONFIRMED, UNKNOWN, FAILED},
     SERVER_CONFIRMED: set(),
     FAILED: set(),
     UNKNOWN: set(),
@@ -78,6 +78,7 @@ class RequestStore:
                 );
                 CREATE INDEX IF NOT EXISTS requests_updated ON requests(updated);
                 CREATE INDEX IF NOT EXISTS requests_state ON requests(state);
+                CREATE INDEX IF NOT EXISTS requests_message ON requests(message_id);
             ''')
             self.db.commit()
 
@@ -148,6 +149,13 @@ class RequestStore:
             return self.public(self.db.execute('SELECT * FROM requests WHERE request_id=?',
                                                (request_id,)).fetchone())
 
+    def message_claimed(self, message_id, request_id):
+        """A real outgoing row belongs to at most one request, across polls."""
+        with self.lock:
+            return self.db.execute(
+                'SELECT 1 FROM requests WHERE message_id=? AND request_id<>? LIMIT 1',
+                (message_id, request_id)).fetchone() is not None
+
     def list_since(self, since=0.0, limit=200):
         limit = max(1, min(int(limit), 1000))
         with self.lock:
@@ -168,6 +176,12 @@ class RequestStore:
                                 (UNKNOWN, reason, now, row['request_id']))
             self.db.commit()
             return [row['request_id'] for row in rows]
+
+    def pending_confirmation(self):
+        with self.lock:
+            return [self.public(row) for row in self.db.execute(
+                'SELECT * FROM requests WHERE state IN (?,?) ORDER BY updated LIMIT 1000',
+                (LOCAL_ACCEPTED, MESSAGE_RECORDED)).fetchall()]
 
     def cancel(self, request_id):
         with self.lock:

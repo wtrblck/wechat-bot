@@ -74,6 +74,105 @@ class MediaInputTest(unittest.TestCase):
             self.assertEqual(source.getnframes() % 320, 0)
         self.assertEqual(self.policy.voice_formats, ('wav', 'silk'))
 
+    def test_gif_preserves_all_frames_timing_loop_and_original_bytes(self):
+        from PIL import Image
+        output = io.BytesIO()
+        Image.new('RGB', (8, 6), 'red').save(output, format='GIF', save_all=True,
+            append_images=[Image.new('RGB', (8, 6), 'blue')], duration=[80, 120], loop=2, disposal=2)
+        original = output.getvalue()
+        prepared = prepare_media('image', self.write('大笑.gif', original), self.policy, self.root / 'stage')
+        self.assertEqual(prepared['media']['format'], 'gif')
+        self.assertEqual(prepared['media']['mime'], 'image/gif')
+        self.assertTrue(prepared['path'].endswith('.gif'))
+        self.assertEqual(Path(prepared['path']).read_bytes(), original)
+        with Image.open(prepared['path']) as image:
+            self.assertEqual(image.n_frames, 2)
+            self.assertEqual(image.info['loop'], 2)
+
+            image.seek(0); self.assertEqual(image.info['duration'], 80)
+            image.seek(1); self.assertEqual(image.info['duration'], 120)
+
+    def test_gif_without_verified_import_fails_without_image_fallback(self):
+        import active_send
+        from unittest.mock import patch
+        from PIL import Image
+        output = io.BytesIO()
+        Image.new('RGB', (8, 6), 'red').save(output, format='GIF')
+        functions = {k: v for k, v in active_send.FUNCTIONS.items() if k != 'emoji_import'}
+        with patch.object(active_send, 'FUNCTIONS', functions), self.assertRaises(PolicyError) as raised:
+            active_send.config_for('image', path=self.write('single-frame.gif', output.getvalue()), policy=self.policy)
+        self.assertEqual(raised.exception.code, 'local_emoji_unavailable')
+
+    def test_gif_uses_native_local_emoji_not_ordinary_image(self):
+        import hashlib
+        from active_send import config_for
+        from send_worker import payload_from_config
+        from PIL import Image
+        output = io.BytesIO()
+        Image.new('RGB', (8, 6), 'red').save(output, format='GIF', save_all=True,
+            append_images=[Image.new('RGB', (8, 6), 'blue')], duration=[80, 120], loop=2)
+        data = output.getvalue()
+        config = config_for('image', path=self.write('misnamed.jpg', data), policy=self.policy)
+        request = config['active_experiment']
+        payload = payload_from_config(config)
+        self.assertEqual(payload['kind'], 'emoji')
+        self.assertTrue(payload['local_emoji'])
+        self.assertEqual(payload['local_emoji_size'], len(data))
+        self.assertIn('emoji_local_copy', [f['name'] for f in request['functions']])
+        self.assertEqual(payload['emoji_type'], 4)
+        self.assertEqual(bytes(payload['emoji_fields']['md5']).decode(), hashlib.md5(data).hexdigest())
+        self.assertNotIn('aes_key', payload['emoji_fields'])
+        self.assertEqual(Path(payload['path']).read_bytes(), data)
+        self.assertIn('ENABLE_LOCAL_EMOJI', request['thread_source'])
+        self.assertIn('emoji_import', [f['name'] for f in request['functions']])
+        static = config_for('image', path=self.write('static.png', png_bytes()), policy=self.policy)
+        self.assertEqual(payload_from_config(static)['kind'], 'image')
+
+    def test_animated_webp_becomes_animated_gif_not_static_png(self):
+        from PIL import Image
+        output = io.BytesIO()
+        Image.new('RGB', (8, 6), 'red').save(output, format='WEBP', save_all=True,
+            append_images=[Image.new('RGB', (8, 6), 'blue')], duration=[80, 120], loop=2, lossless=True)
+        prepared = prepare_media('image', self.write('动画.webp', output.getvalue()), self.policy, self.root / 'stage')
+        self.assertEqual(prepared['media']['format'], 'gif')
+        self.assertEqual(prepared['media']['converted_from'], 'webp')
+        with Image.open(prepared['path']) as image:
+            self.assertEqual(image.n_frames, 2)
+            self.assertEqual(image.info['loop'], 2)
+        from active_send import config_for
+        request = config_for('image', path=self.root / '动画.webp', policy=self.policy)['active_experiment']
+        self.assertEqual(request['kind'], 'emoji')
+        self.assertTrue(request['local_emoji'])
+
+    def test_animation_duration_and_frame_limits_are_checked(self):
+        from PIL import Image
+        output = io.BytesIO()
+        Image.new('RGB', (8, 6), 'red').save(output, format='GIF', save_all=True,
+            append_images=[Image.new('RGB', (8, 6), 'blue')], duration=[65000, 65000])
+        with self.assertRaises(PolicyError) as raised:
+            prepare_media('image', self.write('too-long.gif', output.getvalue()), self.policy, self.root / 'stage')
+        self.assertEqual(raised.exception.code, 'image_animation_too_large')
+
+    def test_static_jpeg_webp_keep_image_route_and_apng_uses_emoji(self):
+        from PIL import Image
+        from active_send import config_for
+        for fmt in ('JPEG', 'WEBP'):
+            output = io.BytesIO()
+            Image.new('RGB', (8, 6), 'red').save(output, format=fmt)
+            request = config_for('image', path=self.write('static.' + fmt.lower(), output.getvalue()),
+                                 policy=self.policy)['active_experiment']
+            self.assertEqual(request['kind'], 'image')
+            self.assertEqual(request['media']['format'], 'png')
+        output = io.BytesIO()
+        Image.new('RGB', (8, 6), 'red').save(output, format='PNG', save_all=True,
+            append_images=[Image.new('RGB', (8, 6), 'blue')], duration=[80, 120], loop=2)
+        request = config_for('image', path=self.write('animated.png', output.getvalue()),
+                             policy=self.policy)['active_experiment']
+        self.assertEqual(request['kind'], 'emoji')
+        with Image.open(request['path']) as image:
+            self.assertEqual(image.n_frames, 2)
+            self.assertEqual(image.info['loop'], 2)
+
     def test_file_inside_root_and_bounded(self):
         text = self.write('附件.txt', 'hello'.encode('utf-8'))
         prepared = prepare_media('file', text, self.policy)

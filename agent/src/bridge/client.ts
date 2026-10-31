@@ -6,11 +6,14 @@ import type { EventPage } from '../contracts.js';
 export class BridgeError extends Error {
   constructor(readonly code: string, readonly status = 0) { super(code); }
 }
+export type SendKind = 'text' | 'file' | 'image' | 'video' | 'emoji';
 export interface Bridge {
   health(): Promise<Record<string, any>>;
   events(after: number): Promise<EventPage>;
   request(id: string): Promise<Record<string, any> | undefined>;
-  send(body: string, kind?: 'text' | 'file'): Promise<Record<string, any>>;
+  send(body: string, kind?: SendKind): Promise<Record<string, any>>;
+  emojiFavorites?(offset: number, limit: number, signal: AbortSignal): Promise<Record<string, any>>;
+  emojiPreview?(id: string, signal: AbortSignal): Promise<Buffer>;
   cancel(id: string): Promise<void>;
   mediaMetadata?(id: string, signal?: AbortSignal): Promise<Record<string, any>>;
   mediaContent?(id: string, maxBytes: number, signal: AbortSignal): Promise<Buffer>;
@@ -52,15 +55,26 @@ export class BridgeClient implements Bridge {
     try { return await this.call(`/request/${encodeURIComponent(id)}`); }
     catch (error) { if (error instanceof BridgeError && error.status === 404) return undefined; throw error; }
   }
-  async send(body: string, kind: 'text' | 'file' = 'text') { return this.call('/send/' + kind, body); }
+  async send(body: string, kind: SendKind = 'text') { return this.call('/send/' + kind, body); }
+  async emojiFavorites(offset: number, limit: number, signal: AbortSignal) {
+    return this.call(`/emoji/favorites?offset=${offset}&limit=${limit}`, undefined, true, signal);
+  }
+  async emojiPreview(id: string, signal: AbortSignal) {
+    if (!/^[a-f0-9]{32}$/.test(id)) throw new BridgeError('invalid_emoji_id');
+    return this.content('/emoji/favorites/' + id + '/content', 8 * 1024 * 1024, signal);
+  }
   async cancel(id: string) { await this.call(`/request/${encodeURIComponent(id)}/cancel`, '{}'); }
   async mediaMetadata(id: string, signal?: AbortSignal) { return this.call('/media/' + encodeURIComponent(id), undefined, true, signal); }
   async mediaContent(id: string, maxBytes: number, signal: AbortSignal) {
+    return this.content('/media/' + encodeURIComponent(id) + '/content?variant=content', maxBytes, signal);
+  }
+  private async content(path: string, maxBytes: number, signal: AbortSignal, retryAuth = true): Promise<Buffer> {
     if (!this.session) await this.discover();
     const s = this.session!;
-    const response = await this.fetcher(s.url + '/media/' + encodeURIComponent(id) + '/content?variant=content', {
+    const response = await this.fetcher(s.url + path, {
       headers: { Authorization: `Bearer ${s.token}` }, redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(this.config.bridge.timeoutMs)]),
     });
+    if (response.status === 401 && retryAuth) { await response.body?.cancel(); await this.discover(); return this.content(path, maxBytes, signal, false); }
     if (!response.ok) throw new BridgeError('media_unavailable', response.status);
     return boundedBody(response, maxBytes);
   }

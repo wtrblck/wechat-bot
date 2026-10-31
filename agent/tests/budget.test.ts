@@ -6,7 +6,7 @@ import { join, relative, isAbsolute } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { GenerateOptions } from '@deepseek-ai/dsh-llm';
 import { AttachmentId } from '@deepseek-ai/dsh-attachment';
-import { DailyBudget } from '../src/budget/daily-budget.js';
+import { DailyBudget, resetDailyAllowance } from '../src/budget/daily-budget.js';
 import { beijingDay, costNanos, loadPricing, nextBeijingMidnight, priceAt, reserveTokens, NANOS_PER_CNY } from '../src/budget/pricing.js';
 import { Store } from '../src/storage/database.js';
 import { Engine } from '../src/engine.js';
@@ -17,6 +17,30 @@ import { config, event, FakeBridge, FakeHost, agentRoot } from './helpers.js';
 const when = (time: string) => Date.parse(time + '+08:00');
 const peak = when('2026-10-29T10:00:00');
 function cfg(limit = 5) { return config({ budget: { enabled: true, dailyLimitCny: limit } }); }
+
+test('manual allowance reset preserves billing and uncertain reservations, is not repeatable until paused, and expires at midnight', () => {
+  let clock = peak;
+  const store = new Store(cfg(), ':memory:', () => clock), budget = new DailyBudget(store);
+  try {
+    const id = budget.reserve(input(), options, 1)!;
+    store.exec("UPDATE budget_requests SET cost_nanos=?,reserved_nanos=?,state='uncertain' WHERE id=?", 4_500_000_000, 4_800_000_000, id);
+    budget.stop('daily_budget_insufficient_for_request');
+    const before = budget.status();
+    const after = resetDailyAllowance(store.config, store.db, clock);
+    assert.equal(after.spentCny, before.spentCny); assert.equal(after.heldCny, before.heldCny);
+    assert.equal(after.uncertainRequests, 1); assert.equal(after.requestCount, 1);
+    assert.equal(after.remainingCny, 5); assert.equal(after.configuredDailyLimitCny, 5);
+    assert.equal(after.dailyLimitCny, 9.8); assert.equal(after.stopped, false); assert.equal(after.resetCount, 1);
+    assert.equal(store.one("SELECT count(*) n FROM metadata WHERE key LIKE 'budget_reset_audit:%'")!.n, 1);
+    assert.throws(() => resetDailyAllowance(store.config, store.db, clock), /budget_reset_not_needed/);
+    assert.equal(store.one('SELECT count(*) n FROM budget_requests')!.n, 1);
+    budget.stop('daily_budget_insufficient_for_request');
+    assert.equal(budget.status().stopped, true);
+    clock = nextBeijingMidnight(clock) + 1;
+    assert.equal(budget.status().dailyLimitCny, 5); assert.equal(budget.status().resetCount, 0);
+    assert.equal(budget.status().remainingCny, 5); assert.equal(budget.status().stopped, false);
+  } finally { store.close(); }
+});
 const options: GenerateOptions = { provider: 'deepseek-official', model: 'deepseek-flash', maxTokens: 4096,
   messages: [{ role: 'user', content: [{ type: 'text', text: '测试输入' }] }] };
 test('vision reserves the verified per-image input bound and refuses an unpriced image route', () => {
@@ -182,4 +206,23 @@ test('budget CLI can read the persistent ledger while the active consumer holds 
     // The CLI uses the actual calendar date, so only require a valid readable report.
     assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).dailyLimitCny, 5);
   } finally { store.close(); cleanup(directory); }
+});
+
+test('manual reset resumes the live engine through a baseline without replaying paused messages', async () => {
+  const c = cfg(), time = peak;
+  const store = new Store(c, ':memory:', () => time), bridge = new FakeBridge(), host = new FakeHost();
+  const engine = new Engine(c, store, bridge, host, () => {});
+  store.ingest({ cursor: 0, events: [], truncated: false });
+  try {
+    engine.budget.stop('daily_budget_insufficient_for_request');
+    await engine.tick(); assert.equal(engine.state, 'budget_exhausted');
+    resetDailyAllowance(c, store.db, time);
+    bridge.page = { cursor: 1, events: [event(1, 'contact-a', '/ai paused input', { timestamp: time / 1000 })], truncated: false };
+    await engine.tick(); await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 0); assert.equal(bridge.posts.length, 0);
+    bridge.page = { cursor: 2, events: [event(2, 'contact-a', '/ai new input', { timestamp: time / 1000 })], truncated: false };
+    await engine.tick(); await engine.drain();
+    assert.equal(engine.state, 'running'); assert.equal(host.calls.length, 1);
+    assert.equal(engine.budget.status().resetCount, 1);
+  } finally { await engine.close(); }
 });

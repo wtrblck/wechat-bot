@@ -10,9 +10,9 @@ Disassembly of section .text:
    18180c4c2:	57                   	push   rdi
    18180c4c3:	48 81 ec 80 00 00 00 	sub    rsp,0x80
    18180c4ca:	48 8d ac 24 80 00 00 	lea    rbp,[rsp+0x80]
-   18180c4d1:	00
+   18180c4d1:	00 
    18180c4d2:	48 c7 45 f8 fe ff ff 	mov    QWORD PTR [rbp-0x8],0xfffffffffffffffe
-   18180c4d9:	ff
+   18180c4d9:	ff 
    18180c4da:	48 89 d7             	mov    rdi,rdx
    18180c4dd:	48 89 ce             	mov    rsi,rcx
    18180c4e0:	48 8b 12             	mov    rdx,QWORD PTR [rdx]

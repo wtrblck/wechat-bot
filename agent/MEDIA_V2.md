@@ -22,6 +22,14 @@
 
 附件会在接收后的轮询中后台准备（最多2个后台任务），当前批次准备先于群参与判断。相同消息的背景准备与显式准备合并，不重复下载。pending最多等待30秒，暂时失败退避60秒；退出时取消并排空准备任务。缓存过期会在上下文标为expired，允许重新准备，不把缺失资料当作已读。
 
+## 原生媒体发送
+
+启用 `egress.sendArtifacts` 后提供 `send_image({path})`、`send_video({path})`、`send_file({path})`。图片支持PNG/JPEG/GIF/WebP，视频支持MP4；最多10 MiB，仅接受当前会话沙箱相对路径。发送时复制固定内容，桥接仍检查媒体根目录白名单和格式；GIF保留原始字节，动态WebP转为保留多帧的GIF，静态JPEG/WebP仍转PNG。接收端实际动画显示仍待实机验收。
+
+2026-10-30起，bot表情包通过 `list_emojis({offset?,limit?,query?})` 从配置目录列出（默认30、最多100），以本轮列出的64位 `emoji_id` 调用 `preview_emoji` 和 `send_emoji`。不调用账号收藏接口。预览读取本地图片并使用官方图片附件进入模型，与read_image共用查看额度和计费。发送走普通image队列，预览过的原始字节在本轮固定，GIF动画不会因预览变成首帧。详见STICKERS.md。
+
+三种原生发送均进入现有outbox，通过原request_id恢复和去重，发送记录按图片/视频/表情包写入本会话历史。相同输入中相同资源和发送类型只排队一次，不同类型互不冲突；文件资源在全部关联请求确认、失败或取消后解除引用。工具返回queued不代表已送达，未知发送状态仍阻塞该会话等待核对。
+
 ## dsh与费用
 
 专用wechat profile新增官方 `@deepseek-ai/dsh-attachment-local`，bot插件显式依赖attachments服务；无需开放宿主通用文件工具或shell。原始副本留在会话沙箱，dsh的不可变图片附件另存于专用DSH_HOME，由模型适配器读取。

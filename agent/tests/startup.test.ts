@@ -22,6 +22,9 @@ test('startup status is read-only, blocks duplicate leases, and requires fresh m
     publish({ updated: now - 15001 }); assert.equal(readAgentStatus(file, now).ready, false);
     publish({ state: 'budget_exhausted' }); assert.equal(readAgentStatus(file, now).state, 'budget_exhausted');
     assert.equal(readAgentStatus(file, now).ready, false);
+    assert.equal(readAgentStatus(file, now).started, true);
+    publish({ state: 'budget_exhausted', updated: now - 15001 });
+    assert.equal(readAgentStatus(file, now).started, false);
     publish(); assert.equal(readAgentStatus(file, now + 31000).running, false);
     assert.equal(store.one('SELECT owner FROM consumer_lock')!.owner, store.owner);
   } finally { store.close(); rmSync(root, { recursive: true, force: true }); }

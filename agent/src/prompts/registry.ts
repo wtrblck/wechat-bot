@@ -40,7 +40,7 @@ export class PromptRegistry {
   }
   private template(path: string) { const value = this.sources.get(path); if (value === undefined) throw Error('template_not_validated'); return value; }
   private render(source: string, scope: string) {
-    const vars: Record<string, string> = { bot_name: '微信助手', conversation_kind: scope, language: '中文',
+    const vars: Record<string, string> = { bot_name: '小鲸鱼', conversation_kind: scope, language: '中文',
       local_time: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }) + ' Asia/Shanghai' };
     return source.replace(/\\\{\{/g, '\u0001').replace(/\{\{\s*([\w]+)\s*\}\}/g, (_, key: string) => {
       if (!(key in vars)) throw Error('unknown_prompt_variable:' + key); return vars[key]!;

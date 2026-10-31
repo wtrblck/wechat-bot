@@ -105,3 +105,34 @@ test('search uses the bounded public transport, parses sources and reports provi
   const unavailable = new Web(config().web, web.resolve, async url => ({ url: url.href, status: 200, mime: 'text/html', body: '<h1>captcha</h1>', truncated: false }));
   await assert.rejects(unavailable.search('query', signal()), /unavailable/);
 });
+
+test('community site queries discard unrelated RSS hits and select matching results before applying the result cap', async () => {
+  const web = new Web({ ...config().web, maxResults: 1 }, async () => [{ address: '8.8.8.8', family: 4 }], async url => ({
+    url: url.href, status: 200, mime: 'application/rss+xml', truncated: false, body: '<rss><channel>' +
+      '<item><title>无关结果</title><link>https://example.com/</link></item>' +
+      '<item><title>伪装域名</title><link>https://bilibili.com.example.org/</link></item>' +
+      '<item><title>梗的介绍</title><link>https://www.bilibili.com/opus/123</link></item></channel></rss>',
+  }));
+  const result = await web.search('红温 site:bilibili.com', signal());
+  assert.equal(result.sources.length, 1); assert.equal(result.sources[0]!.title, '梗的介绍');
+  assert.deepEqual(result.siteFilters, ['bilibili.com']);
+  const missing = await web.search('红温 site:douyin.com', signal());
+  assert.deepEqual(missing.sources, []); assert.match(missing.note!, /没有返回属于指定站点/);
+});
+
+test('Bilibili public metadata fallback is bounded, keeps canonical video links and never claims video viewing', async () => {
+  const calls: string[] = [];
+  const web = new Web(config().web, async () => [{ address: '8.8.8.8', family: 4 }], async url => {
+    calls.push(url.hostname);
+    if (url.hostname === 'www.bing.com') return { url: url.href, status: 200, mime: 'application/rss+xml', truncated: false, body: '<rss><channel></channel></rss>' };
+    assert.equal(url.hostname, 'api.bilibili.com'); assert.equal(url.searchParams.get('keyword'), '红温 是什么梗');
+    return { url: url.href, status: 200, mime: 'application/json', truncated: false, body: JSON.stringify({ code: 0, data: { result: [
+      { bvid: 'BV1fsxY6sEwK', title: '<em>红温</em>梗介绍', author: '作者', description: '公开视频简介', arcurl: 'http://127.0.0.1/' },
+      { bvid: '../invalid', title: '无效结果' },
+    ] } }) };
+  });
+  const result = await web.search('红温 是什么梗 site:bilibili.com', signal());
+  assert.deepEqual(calls, ['www.bing.com', 'api.bilibili.com']);
+  assert.equal(result.sources.length, 1); assert.equal(result.sources[0]!.url, 'https://www.bilibili.com/video/BV1fsxY6sEwK');
+  assert.equal(result.sources[0]!.title, '红温梗介绍'); assert.match(result.note!, /没有观看视频/);
+});

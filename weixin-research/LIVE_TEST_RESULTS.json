@@ -1,0 +1,247 @@
+{
+  "scope": "Short-lived filehelper wxbot-* experiments only",
+  "send_api_verified": false,
+  "receive_http_verified": true,
+  "http_check": {
+    "passed": true,
+    "via": "HTTP GET /events",
+    "content": "wxbot-api-1028",
+    "journal": "E:\\projects\\wechat-bot\\weixin-research\\runs\\api\\20261028T104401Z-55a151f8.jsonl"
+  },
+  "runs": [
+    {
+      "journal": "20261028T101939Z-f14a2962.json",
+      "started_utc": "2026-10-28T10:19:39.838278+00:00",
+      "pid": 24988,
+      "seconds": 10,
+      "sites": [],
+      "backend": "js",
+      "outcome": "completed",
+      "last_counts": {},
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T102026Z-efcfa987.json",
+      "started_utc": "2026-10-28T10:20:26.687289+00:00",
+      "pid": 24988,
+      "seconds": 60,
+      "sites": [
+        "sync_process_candidate"
+      ],
+      "backend": "js",
+      "outcome": "failed",
+      "last_counts": {
+        "sync_process_candidate": 2
+      },
+      "detach": [
+        {
+          "reason": "process-terminated",
+          "expected": false
+        }
+      ],
+      "process_status": [],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T102612Z-72df14aa.json",
+      "started_utc": "2026-10-28T10:26:12.311858+00:00",
+      "pid": 45820,
+      "seconds": 30,
+      "sites": [],
+      "backend": "js",
+      "outcome": "completed",
+      "last_counts": {},
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T102820Z-0fee4cb4.json",
+      "started_utc": "2026-10-28T10:28:20.654441+00:00",
+      "pid": 45820,
+      "seconds": 45,
+      "sites": [
+        "sync_process_candidate"
+      ],
+      "backend": "native",
+      "outcome": "completed",
+      "last_counts": {
+        "sync_process_candidate": 1
+      },
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T103414Z-b9666b4c.json",
+      "started_utc": "2026-10-28T10:34:14.896205+00:00",
+      "pid": 45820,
+      "seconds": 60,
+      "sites": [
+        "sync_process_candidate"
+      ],
+      "backend": "native",
+      "outcome": "completed",
+      "last_counts": {
+        "sync_process_candidate": 2
+      },
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": [
+        {
+          "schema": "experimental-sync-0x70",
+          "content": "wxbot-recv-parse-1028",
+          "message_type": 1,
+          "message_id": "3654348141969771072",
+          "recipient": "filehelper"
+        }
+      ]
+    },
+    {
+      "journal": "20261028T103711Z-61c483e3.json",
+      "started_utc": "2026-10-28T10:37:11.140177+00:00",
+      "pid": 45820,
+      "seconds": 60,
+      "sites": [
+        "send_stage_candidate_a"
+      ],
+      "backend": "native",
+      "outcome": "completed",
+      "last_counts": {
+        "send_stage_candidate_a": 1
+      },
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T103920Z-7addb40d.json",
+      "started_utc": "2026-10-28T10:39:20.701648+00:00",
+      "pid": 45820,
+      "seconds": 60,
+      "sites": [
+        "send_stage_candidate_a"
+      ],
+      "backend": "native",
+      "outcome": "completed",
+      "last_counts": {
+        "send_stage_candidate_a": 1
+      },
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T104232Z-a074e946.json",
+      "started_utc": "2026-10-28T10:42:32.644854+00:00",
+      "pid": 45820,
+      "seconds": 45,
+      "sites": [
+        "send_stage_candidate_a"
+      ],
+      "backend": "native",
+      "outcome": "completed",
+      "last_counts": {
+        "send_stage_candidate_a": 0
+      },
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": []
+    },
+    {
+      "journal": "20261028T104524Z-e48ee9ce.json",
+      "started_utc": "2026-10-28T10:45:24.746558+00:00",
+      "pid": 45820,
+      "seconds": 60,
+      "sites": [
+        "send_stage_candidate_a"
+      ],
+      "backend": "native",
+      "outcome": "completed",
+      "last_counts": {
+        "send_stage_candidate_a": 1
+      },
+      "detach": [
+        {
+          "reason": "application-requested",
+          "expected": true
+        }
+      ],
+      "process_status": [
+        {
+          "state": "running"
+        }
+      ],
+      "test_messages": [
+        {
+          "schema": "experimental-send-stage",
+          "content": "wxbot-send-final-1028",
+          "message_type": 1,
+          "message_id": "0",
+          "recipient": "filehelper"
+        }
+      ]
+    }
+  ]
+}

@@ -15,10 +15,10 @@ Disassembly of section .text:
    1855f038b:	53                   	push   rbx
    1855f038c:	48 81 ec 18 03 00 00 	sub    rsp,0x318
    1855f0393:	48 8d ac 24 80 00 00 	lea    rbp,[rsp+0x80]
-   1855f039a:	00
+   1855f039a:	00 
    1855f039b:	0f 29 b5 80 02 00 00 	movaps XMMWORD PTR [rbp+0x280],xmm6
    1855f03a2:	48 c7 85 78 02 00 00 	mov    QWORD PTR [rbp+0x278],0xfffffffffffffffe
-   1855f03a9:	fe ff ff ff
+   1855f03a9:	fe ff ff ff 
    1855f03ad:	4c 89 8d 58 02 00 00 	mov    QWORD PTR [rbp+0x258],r9
    1855f03b4:	4c 89 c6             	mov    rsi,r8
    1855f03b7:	48 89 d3             	mov    rbx,rdx
@@ -81,7 +81,7 @@ Disassembly of section .text:
    1855f0492:	4c 89 f1             	mov    rcx,r14
    1855f0495:	ff 50 08             	call   QWORD PTR [rax+0x8]
    1855f0498:	48 83 bd 00 01 00 00 	cmp    QWORD PTR [rbp+0x100],0x0
-   1855f049f:	00
+   1855f049f:	00 
    1855f04a0:	74 7c                	je     0x1855f051e
    1855f04a2:	0f 29 b5 20 02 00 00 	movaps XMMWORD PTR [rbp+0x220],xmm6
    1855f04a9:	48 8d 8d 20 02 00 00 	lea    rcx,[rbp+0x220]
@@ -89,7 +89,7 @@ Disassembly of section .text:
    1855f04b5:	90                   	nop
    1855f04b6:	48 8b 85 20 02 00 00 	mov    rax,QWORD PTR [rbp+0x220]
    1855f04bd:	c7 80 18 01 00 00 01 	mov    DWORD PTR [rax+0x118],0x1
-   1855f04c4:	00 00 00
+   1855f04c4:	00 00 00 
    1855f04c7:	4c 8d 4b 20          	lea    r9,[rbx+0x20]
    1855f04cb:	4c 8d b0 58 07 00 00 	lea    r14,[rax+0x758]
    1855f04d2:	4d 39 ce             	cmp    r14,r9
@@ -119,16 +119,16 @@ Disassembly of section .text:
    1855f053a:	e8 d1 c9 a7 fa       	call   0x18006cf10
    1855f053f:	90                   	nop
    1855f0540:	48 83 bd 38 02 00 00 	cmp    QWORD PTR [rbp+0x238],0x10
-   1855f0547:	10
+   1855f0547:	10 
    1855f0548:	72 07                	jb     0x1855f0551
    1855f054a:	4c 8b b5 20 02 00 00 	mov    r14,QWORD PTR [rbp+0x220]
    1855f0551:	48 8d 05 28 70 41 04 	lea    rax,[rip+0x4417028]        # 0x189a07580
    1855f0558:	48 89 44 24 20       	mov    QWORD PTR [rsp+0x20],rax
    1855f055d:	48 c7 44 24 38 00 00 	mov    QWORD PTR [rsp+0x38],0x0
-   1855f0564:	00 00
+   1855f0564:	00 00 
    1855f0566:	c6 44 24 30 00       	mov    BYTE PTR [rsp+0x30],0x0
    1855f056b:	c7 44 24 28 79 00 00 	mov    DWORD PTR [rsp+0x28],0x79
-   1855f0572:	00
+   1855f0572:	00 
    1855f0573:	4c 8d 0d 56 6d 41 04 	lea    r9,[rip+0x4416d56]        # 0x189a072d0
    1855f057a:	48 8d 8d 90 01 00 00 	lea    rcx,[rbp+0x190]
    1855f0581:	ba 03 00 00 00       	mov    edx,0x3
@@ -187,9 +187,9 @@ Disassembly of section .text:
    1855f0686:	90                   	nop
    1855f0687:	48 89 85 10 01 00 00 	mov    QWORD PTR [rbp+0x110],rax
    1855f068e:	48 c7 85 20 01 00 00 	mov    QWORD PTR [rbp+0x120],0x11
-   1855f0695:	11 00 00 00
+   1855f0695:	11 00 00 00 
    1855f0699:	48 c7 85 28 01 00 00 	mov    QWORD PTR [rbp+0x128],0x1f
-   1855f06a0:	1f 00 00 00
+   1855f06a0:	1f 00 00 00 
    1855f06a4:	0f 10 05 7d 32 41 04 	movups xmm0,XMMWORD PTR [rip+0x441327d]        # 0x189a03928 ; Contact not found
    1855f06ab:	0f 11 00             	movups XMMWORD PTR [rax],xmm0
    1855f06ae:	66 c7 40 10 64 00    	mov    WORD PTR [rax+0x10],0x64
@@ -320,13 +320,13 @@ Disassembly of section .text:
    1855f08c2:	48 89 d9             	mov    rcx,rbx
    1855f08c5:	ff 50 08             	call   QWORD PTR [rax+0x8]
    1855f08c8:	48 83 bd 40 02 00 00 	cmp    QWORD PTR [rbp+0x240],0x0
-   1855f08cf:	00
+   1855f08cf:	00 
    1855f08d0:	0f 84 ef 01 00 00    	je     0x1855f0ac5
    1855f08d6:	b9 20 00 00 00       	mov    ecx,0x20
    1855f08db:	e8 fc b3 f5 01       	call   0x18754bcdc
    1855f08e0:	90                   	nop
    1855f08e1:	48 b9 01 00 00 00 01 	movabs rcx,0x100000001
-   1855f08e8:	00 00 00
+   1855f08e8:	00 00 00 
    1855f08eb:	48 89 48 08          	mov    QWORD PTR [rax+0x8],rcx
    1855f08ef:	48 8d 0d 12 67 41 04 	lea    rcx,[rip+0x4416712]        # 0x189a07008
    1855f08f6:	48 89 08             	mov    QWORD PTR [rax],rcx
@@ -459,10 +459,10 @@ Disassembly of section .text:
    1855f0aef:	48 8d 05 8a 6a 41 04 	lea    rax,[rip+0x4416a8a]        # 0x189a07580
    1855f0af6:	48 89 44 24 20       	mov    QWORD PTR [rsp+0x20],rax
    1855f0afb:	48 c7 44 24 38 00 00 	mov    QWORD PTR [rsp+0x38],0x0
-   1855f0b02:	00 00
+   1855f0b02:	00 00 
    1855f0b04:	c6 44 24 30 00       	mov    BYTE PTR [rsp+0x30],0x0
    1855f0b09:	c7 44 24 28 87 00 00 	mov    DWORD PTR [rsp+0x28],0x87
-   1855f0b10:	00
+   1855f0b10:	00 
    1855f0b11:	4c 8d 0d b8 67 41 04 	lea    r9,[rip+0x44167b8]        # 0x189a072d0
    1855f0b18:	48 8d 8d 90 01 00 00 	lea    rcx,[rbp+0x190]
    1855f0b1f:	ba 04 00 00 00       	mov    edx,0x4
@@ -483,7 +483,7 @@ Disassembly of section .text:
    1855f0b6b:	0f 11 85 28 01 00 00 	movups XMMWORD PTR [rbp+0x128],xmm0
    1855f0b72:	0f 11 85 18 01 00 00 	movups XMMWORD PTR [rbp+0x118],xmm0
    1855f0b79:	48 c7 85 88 01 00 00 	mov    QWORD PTR [rbp+0x188],0x0
-   1855f0b80:	00 00 00 00
+   1855f0b80:	00 00 00 00 
    1855f0b84:	48 89 bd 10 01 00 00 	mov    QWORD PTR [rbp+0x110],rdi
    1855f0b8b:	48 8d 15 be 03 41 04 	lea    rdx,[rip+0x44103be]        # 0x189a00f50
    1855f0b92:	48 8d 8d 90 01 00 00 	lea    rcx,[rbp+0x190]
@@ -516,9 +516,9 @@ Disassembly of section .text:
    1855f0c0c:	90                   	nop
    1855f0c0d:	48 89 85 10 01 00 00 	mov    QWORD PTR [rbp+0x110],rax
    1855f0c14:	48 c7 85 20 01 00 00 	mov    QWORD PTR [rbp+0x120],0x37
-   1855f0c1b:	37 00 00 00
+   1855f0c1b:	37 00 00 00 
    1855f0c1f:	48 c7 85 28 01 00 00 	mov    QWORD PTR [rbp+0x128],0x3f
-   1855f0c26:	3f 00 00 00
+   1855f0c26:	3f 00 00 00 
    1855f0c2a:	0f 10 05 b7 63 41 04 	movups xmm0,XMMWORD PTR [rip+0x44163b7]        # 0x189a06fe8 ; eManager is unavailable
    1855f0c31:	0f 11 40 20          	movups XMMWORD PTR [rax+0x20],xmm0
    1855f0c35:	0f 10 05 9c 63 41 04 	movups xmm0,XMMWORD PTR [rip+0x441639c]        # 0x189a06fd8 ; e_failed: MessageManager is unavailable
@@ -526,7 +526,7 @@ Disassembly of section .text:
    1855f0c40:	0f 10 05 81 63 41 04 	movups xmm0,XMMWORD PTR [rip+0x4416381]        # 0x189a06fc8 ; send_text_message_failed: MessageManager is unavailable
    1855f0c47:	0f 11 00             	movups XMMWORD PTR [rax],xmm0
    1855f0c4a:	48 b9 76 61 69 6c 61 	movabs rcx,0x656c62616c696176
-   1855f0c51:	62 6c 65
+   1855f0c51:	62 6c 65 
    1855f0c54:	48 89 48 2f          	mov    QWORD PTR [rax+0x2f],rcx
    1855f0c58:	c6 40 37 00          	mov    BYTE PTR [rax+0x37],0x0
    1855f0c5c:	0f 29 b5 b0 01 00 00 	movaps XMMWORD PTR [rbp+0x1b0],xmm6
@@ -584,7 +584,7 @@ Disassembly of section .text:
    1855f0d59:	e9 c1 02 00 00       	jmp    0x1855f101f
    1855f0d5e:	48 89 9d b0 01 00 00 	mov    QWORD PTR [rbp+0x1b0],rbx
    1855f0d65:	48 c7 85 b8 01 00 00 	mov    QWORD PTR [rbp+0x1b8],0xf
-   1855f0d6c:	0f 00 00 00
+   1855f0d6c:	0f 00 00 00 
    1855f0d70:	0f 10 06             	movups xmm0,XMMWORD PTR [rsi]
    1855f0d73:	0f 11 00             	movups XMMWORD PTR [rax],xmm0
    1855f0d76:	48 8b 85 28 02 00 00 	mov    rax,QWORD PTR [rbp+0x228]
@@ -623,7 +623,7 @@ Disassembly of section .text:
    1855f0e0e:	4c 89 bd d0 01 00 00 	mov    QWORD PTR [rbp+0x1d0],r15
    1855f0e15:	4c 89 a5 d8 01 00 00 	mov    QWORD PTR [rbp+0x1d8],r12
    1855f0e1c:	48 c7 45 38 00 00 00 	mov    QWORD PTR [rbp+0x38],0x0
-   1855f0e23:	00
+   1855f0e23:	00 
    1855f0e24:	b9 58 00 00 00       	mov    ecx,0x58
    1855f0e29:	e8 ae ae f5 01       	call   0x18754bcdc
    1855f0e2e:	90                   	nop
@@ -663,7 +663,7 @@ Disassembly of section .text:
    1855f0ebb:	48 83 c0 18          	add    rax,0x18
    1855f0ebf:	48 89 5a 28          	mov    QWORD PTR [rdx+0x28],rbx
    1855f0ec3:	48 c7 42 30 0f 00 00 	mov    QWORD PTR [rdx+0x30],0xf
-   1855f0eca:	00
+   1855f0eca:	00 
    1855f0ecb:	48 8d 8d a0 01 00 00 	lea    rcx,[rbp+0x1a0]
    1855f0ed2:	0f 10 01             	movups xmm0,XMMWORD PTR [rcx]
    1855f0ed5:	0f 11 00             	movups XMMWORD PTR [rax],xmm0
@@ -700,7 +700,7 @@ Disassembly of section .text:
    1855f0f62:	90                   	nop
    1855f0f63:	c6 85 77 02 00 00 00 	mov    BYTE PTR [rbp+0x277],0x0
    1855f0f6a:	c7 44 24 20 01 00 00 	mov    DWORD PTR [rsp+0x20],0x1
-   1855f0f71:	00
+   1855f0f71:	00 
    1855f0f72:	48 8d 95 90 00 00 00 	lea    rdx,[rbp+0x90]
    1855f0f79:	4c 8d 85 10 01 00 00 	lea    r8,[rbp+0x110]
    1855f0f80:	49 89 e9             	mov    r9,rbp
@@ -835,7 +835,7 @@ Disassembly of section .text:
    1855f1111:	5d                   	pop    rbp
    1855f1112:	c3                   	ret
    1855f1113:	66 66 66 66 2e 0f 1f 	data16 data16 data16 cs nop WORD PTR [rax+rax*1+0x0]
-   1855f111a:	84 00 00 00 00 00
+   1855f111a:	84 00 00 00 00 00 
    1855f1120:	48 89 54 24 10       	mov    QWORD PTR [rsp+0x10],rdx
    1855f1125:	55                   	push   rbp
    1855f1126:	41 57                	push   r15
@@ -862,4 +862,4 @@ Disassembly of section .text:
    1855f1161:	5d                   	pop    rbp
    1855f1162:	c3                   	ret
    1855f1163:	66 66 66 66 2e 0f 1f 	data16 data16 data16 cs nop WORD PTR [rax+rax*1+0x0]
-   1855f116a:	84 00 00 00 00 00
+   1855f116a:	84 00 00 00 00 00 

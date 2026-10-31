@@ -60,7 +60,7 @@ try {
         if (!$ownsMutex) { throw '已有启动过程正在进行，请稍候查看状态，不要重复点击。' }
         $existing = Get-BotSnapshot
         if ($existing.agent.running) {
-            if ($existing.agent.ready -and $existing.bridge.ready) { Write-Host 'bot 已在运行，无需重复启动。'; exit 0 }
+            if ($existing.agent.started -and $existing.bridge.ready) { Write-Host ('bot 已启动，当前状态：' + $existing.agent.state + '，无需重复启动。'); exit 0 }
             throw ('已有 bot 实例，当前状态：' + $existing.agent.state + '。请先处理现有实例，未重复启动。')
         }
         $runLogs = Join-Path $agentRoot ('data/startup/' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + $PID)
@@ -103,7 +103,7 @@ try {
     if (!$snapshot.agent.running) { $agentProcess = Start-HiddenComponent (Join-Path $agentRoot 'start-agent.ps1') 'agent' }
     else { $agentProcess = $null; Write-StartupMessage '发现已运行的 bot，复用现有实例。' }
     $timer.Restart()
-    while (!$snapshot.agent.ready) {
+    while (!$snapshot.agent.started) {
         if ($agentProcess -and $agentProcess.HasExited) { throw 'bot 启动后已退出，请查看本次 agent.err.log。' }
         if ($snapshot.agent.running -and $snapshot.agent.state -in @('paused_gap', 'budget_exhausted', 'budget_blocked', 'blocked')) {
             throw ('bot 已运行但暂停：' + $snapshot.agent.state + '。请处理原因后再启动。')
@@ -115,7 +115,8 @@ try {
         Start-Sleep -Milliseconds 1000
         $snapshot = Get-BotSnapshot
     }
-    Write-StartupMessage 'bot 已就绪并在后台运行。可以关闭此启动窗口；本脚本不启动 dsh Web。'
+    if ($snapshot.agent.ready) { Write-StartupMessage 'bot 已就绪并在后台运行。可以关闭此启动窗口；本脚本不启动 dsh Web。' }
+    else { Write-StartupMessage ('bot 已启动，因预算暂停模型调用：' + $snapshot.agent.state + '。请在管理页查看预算；无需反复启动。') }
     Write-StartupMessage ('日志目录：' + $runLogs)
 } catch {
     Write-StartupMessage ('启动失败：' + $_.Exception.Message)

@@ -103,6 +103,9 @@ rpc.exports.startWorker = function () {
     header.add(24).writeU64(15);
     fieldBuffers[field] = sendFresh(4097);
   }
+  const localInput = sendFresh(96), localPair = sendFresh(16), localSize = sendFresh(4);
+  localPair.writePointer(localInput);
+  const localMd5Buffer = sendFresh(4097), localPathBuffer = sendFresh(8192);
   const helper = new CModule(request.helper_source);
   sendKeepAlive.push(helper);
   const worker = new CModule(request.thread_source, {
@@ -117,6 +120,10 @@ rpc.exports.startWorker = function () {
     emoji_record:record, emoji_control_vtable:targetModule.base.add(request.emoji_control_vtable),
     emoji_new_fn:address('emoji_new'), emoji_construct_fn:address('emoji_construct'),
     emoji_factory_fn:address('emoji_factory'),
+    ...(request.local_emoji ? {emoji_import_fn:address('emoji_import'), local_emoji_input:localPair,
+      emoji_local_copy_fn:address('emoji_local_copy'), local_emoji_size:localSize,
+      local_emoji_control_vtable:targetModule.base.add(request.local_emoji_control_vtable),
+      local_emoji_resource_vtable:targetModule.base.add(request.local_emoji_resource_vtable)} : {}),
     release_pair:helper.release_pair,
     read_memory:Process.getModuleByName('kernel32.dll').getExportByName('ReadProcessMemory'),
     get_thread_id:Process.getModuleByName('kernel32.dll').getExportByName('GetCurrentThreadId')
@@ -127,7 +134,8 @@ rpc.exports.startWorker = function () {
   Interceptor.flush();
   Script.pin();
   sendWorker = {job, textHeader, textBuffer, recipientHeader, recipientBuffer, voiceHeader,
-    voiceBuffer, duration, wideHeader, wideBuffer, record, fieldOffsets, fieldBuffers, worker};
+    voiceBuffer, duration, wideHeader, wideBuffer, record, fieldOffsets, fieldBuffers,
+    localInput, localPair, localMd5Buffer, localPathBuffer, localSize, worker};
   send({event:'send_worker_ready', checkpoint_rva:
     request.functions.find(item => item.name === 'thread_checkpoint').rva, backend:'native'});
   return true;
@@ -175,7 +183,7 @@ rpc.exports.dispatchJob = function (payload) {
       w.voiceHeader.add(24).writeU64(15);
       w.duration.writeU32(0);
     }
-    if (kind === 'image' || kind === 'file' || kind === 'video') {
+    if (kind === 'image' || kind === 'file' || kind === 'video' || (kind === 'emoji' && payload.local_emoji)) {
       const path = typeof payload.path === 'string' ? payload.path : '';
       if (!path) throw new Error('Path is required');
       if (path.length > 1024) throw new Error('Path is too long');
@@ -186,14 +194,27 @@ rpc.exports.dispatchJob = function (payload) {
     }
     if (kind === 'emoji') {
       const fields = payload.emoji_fields || {};
+      const local = payload.local_emoji === true;
+      if (local && !request.local_emoji) throw new Error('Local emoji unavailable');
       for (const [field, offset] of Object.entries(w.fieldOffsets)) {
         const bytes = sendBytes(fields[field] || [], 'emoji field', 4096);
-        if ((field === 'md5' || field === 'aes_key') && bytes.length !== 32) throw new Error('Invalid emoji identity/key');
+        if (field === 'md5' && (bytes.length !== 32 || !/^[a-f0-9]{32}$/.test(String.fromCharCode(...bytes)))) throw new Error('Invalid emoji identity');
+        if (field === 'aes_key' && bytes.length !== (local ? 0 : 32)) throw new Error('Invalid emoji key');
+        if (local && field !== 'md5' && field !== 'caption' && bytes.length) throw new Error('Unexpected local emoji resource');
         writeString(w.record.add(offset), w.fieldBuffers[field], 4096, bytes);
       }
       const type = payload.emoji_type;
-      if (![1, 2, 3].includes(type)) throw new Error('Invalid emoji type');
+      if (!(local ? type === 4 : [1, 2, 3].includes(type))) throw new Error('Invalid emoji type');
       w.record.add(0x120).writeU32(type);
+      if (local) {
+        const path = payload.path;
+        if (typeof path !== 'string' || !path || path.length > 1024 || /[\x00-\x1f]/.test(path)) throw new Error('Invalid local emoji path');
+        writeString(w.localInput, w.localMd5Buffer, 4096, sendBytes(fields.md5, 'md5', 32));
+        writeWide(w.localInput.add(64), w.localPathBuffer, 4096, path);
+        if (!Number.isInteger(payload.local_emoji_size) || payload.local_emoji_size < 1 || payload.local_emoji_size > 64*1024*1024) throw new Error('Invalid local emoji length');
+        w.localSize.writeU32(payload.local_emoji_size);
+        w.job.add(20).writeU32(1);
+      }
     }
     w.job.writeU32(0);                       // arm: the native claim observes this last
     const timeout = Number.isInteger(payload.timeout_ms) ? payload.timeout_ms : 20000;
@@ -266,3 +287,4 @@ rpc.exports.stopWorker = function () {
   sendBusy = false;
   return true;
 };
+

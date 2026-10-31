@@ -31,6 +31,8 @@ def render_source(config):
         config['capture_source'] = (ROOT / 'receive_test.c').read_text(encoding='utf-8')
         if config.get('capture_kind') == 'send':
             config['capture_source'] += '\n' + (ROOT / 'send_capture.c').read_text(encoding='utf-8')
+        elif config.get('capture_kind') == 'emoji_file_read':
+            config['capture_source'] += '\n' + (ROOT / 'emoji_file_read_capture.c').read_text(encoding='utf-8')
     source = (ROOT / 'probe.js').read_text(encoding='utf-8').replace('__CONFIG__', json.dumps(config))
     if config.get('active_experiment'):
         adapter = {'download_async': 'download_async.js',

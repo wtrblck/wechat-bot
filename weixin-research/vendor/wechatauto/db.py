@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# Public export modification: anonymized sample identifiers; no behavior changes (2026-10-30).
 """wechatauto 数据库读取模块（微信 4.x）
 
 通过读取微信本地 SQLCipher 加密数据库实现消息读取，不依赖 UI 自动化。
@@ -561,7 +560,7 @@ class WeChatDB:
         else:
             self.master_key = None
             self.cfg_dword = None
-
+            
             # 优先级1: 尝试已保存的密钥
             if os.path.exists(self.keys_file):
                 try:
@@ -574,30 +573,30 @@ class WeChatDB:
                             pass
                 except (json.JSONDecodeError, OSError):
                     pass
-
+            
             missing = [
                 rel for rel, path, _ in self._db_files
                 if rel not in self._keys or not self._key_works(rel)
             ]
-
+            
             # 优先级2: Config.Cipher 内存扫描(4.1+ 主路径)
             if missing:
                 extracted = self.extract_keys()
                 self._keys.update(extracted)
                 self._save_keys()
-
+            
             # 尝试提取cfg_dword用于图片密钥派生
             if self.cfg_dword is None:
                 auto = self.extract_master_key()
                 if auto:
                     _, cfg_dword, _ = auto
                     self.cfg_dword = cfg_dword
-
+            
             missing = [
                 rel for rel, path, _ in self._db_files
                 if rel not in self._keys or not self._key_works(rel)
             ]
-
+            
             # 优先级3: cfg 自动提取(老版本回退)
             if missing:
                 auto = self.extract_master_key()
@@ -1893,7 +1892,7 @@ class WeChatDB:
 def list_accounts(db_dir: Optional[str] = None) -> List[dict]:
     """扫描数据目录下的所有微信账号目录。
 
-    返回: [{"account": "wxid_sample_03", "wxid": "wxid_xxx",
+    返回: [{"account": "wxid_xxx_abcd", "wxid": "wxid_xxx",
             "path": ..., "last_activity": mtime, "self_nick": 昵称或空}]
     """
     db_dir = db_dir or auto_detect_db_dir()

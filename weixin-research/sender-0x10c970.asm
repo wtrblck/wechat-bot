@@ -10,7 +10,7 @@ Disassembly of section .text:
    18010c972:	48 83 ec 28          	sub    rsp,0x28
    18010c976:	48 8d 6c 24 20       	lea    rbp,[rsp+0x20]
    18010c97b:	48 c7 45 00 fe ff ff 	mov    QWORD PTR [rbp+0x0],0xfffffffffffffffe
-   18010c982:	ff
+   18010c982:	ff 
    18010c983:	48 89 ce             	mov    rsi,rcx
    18010c986:	48 8b 02             	mov    rax,QWORD PTR [rdx]
    18010c989:	48 c7 02 00 00 00 00 	mov    QWORD PTR [rdx],0x0

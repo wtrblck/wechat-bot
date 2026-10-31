@@ -1,0 +1,132 @@
+[
+  {
+    "text": "kStoreEmoticonFilesTable",
+    "rva": "0x95f3468",
+    "refs": [
+      {
+        "rva": "0x311efa2",
+        "function": "0x311ef80"
+      },
+      {
+        "rva": "0x3121ef0",
+        "function": "0x3121bf0"
+      },
+      {
+        "rva": "0x31228d8",
+        "function": "0x3122820"
+      },
+      {
+        "rva": "0x31235f4",
+        "function": "0x31235b0"
+      },
+      {
+        "rva": "0x3130442",
+        "function": "0x312ff00"
+      },
+      {
+        "rva": "0x3130e80",
+        "function": "0x312ff00"
+      }
+    ]
+  },
+  {
+    "text": "micromsg.UploadEmojiInfoReq",
+    "rva": "0x98758d8",
+    "refs": []
+  },
+  {
+    "text": "micromsg.EmojiUploadRequest",
+    "rva": "0x9875968",
+    "refs": []
+  },
+  {
+    "text": "micromsg.UploadEmojiInfoResp",
+    "rva": "0x98759f8",
+    "refs": []
+  },
+  {
+    "text": "micromsg.EmojiUploadResponse",
+    "rva": "0x9875a88",
+    "refs": []
+  },
+  {
+    "text": "LoadEmoticonsFromLocal",
+    "rva": "0x99dfef8",
+    "refs": [
+      {
+        "rva": "0x5456887",
+        "function": "0x5456630"
+      }
+    ]
+  },
+  {
+    "text": "Emoticon file not downloaded yet",
+    "rva": "0x9a03ad8",
+    "refs": []
+  },
+  {
+    "text": "File cannot be sent as emoticon",
+    "rva": "0x9a03b00",
+    "refs": []
+  },
+  {
+    "text": "micromsg.EmojiUploadInfoReq",
+    "rva": "0x9abec38",
+    "refs": []
+  },
+  {
+    "text": "micromsg.UploadEmojiRequest",
+    "rva": "0x9abecc8",
+    "refs": []
+  },
+  {
+    "text": "micromsg.EmojiUploadInfoResp",
+    "rva": "0x9abed58",
+    "refs": []
+  },
+  {
+    "text": "micromsg.UploadEmojiResponse",
+    "rva": "0x9abede8",
+    "refs": []
+  },
+  {
+    "text": "emoticon file invalid",
+    "rva": "0x9c82b00",
+    "refs": []
+  },
+  {
+    "text": "emoticon file read error",
+    "rva": "0x9c82b18",
+    "refs": []
+  },
+  {
+    "text": "kernel::manager::StoreEmoticonDownloadTask::RealDownloadFile",
+    "rva": "0x9da0dd0",
+    "refs": []
+  },
+  {
+    "text": "/cgi-bin/micromsg-bin/mmemojiupload",
+    "rva": "0x9e24de0",
+    "refs": []
+  },
+  {
+    "text": "mmui::LocalEmoticonSearchPageContentView",
+    "rva": "0xb3ade58",
+    "refs": [
+      {
+        "rva": "0x8c48a1",
+        "function": "0x8c4890"
+      }
+    ]
+  },
+  {
+    "text": "mmui::LocalEmoticonSearchLoadingView",
+    "rva": "0xb3ae048",
+    "refs": [
+      {
+        "rva": "0x8c4e0e",
+        "function": "0x8c4e00"
+      }
+    ]
+  }
+]

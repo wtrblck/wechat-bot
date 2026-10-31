@@ -15,7 +15,7 @@ Disassembly of section .text:
    186cd09ba:	48 83 ec 40          	sub    rsp,0x40
    186cd09be:	48 8d 6c 24 40       	lea    rbp,[rsp+0x40]
    186cd09c3:	48 c7 45 f8 fe ff ff 	mov    QWORD PTR [rbp-0x8],0xfffffffffffffffe
-   186cd09ca:	ff
+   186cd09ca:	ff 
    186cd09cb:	4c 89 cb             	mov    rbx,r9
    186cd09ce:	4d 89 c6             	mov    r14,r8
    186cd09d1:	49 89 d7             	mov    r15,rdx
@@ -24,7 +24,7 @@ Disassembly of section .text:
    186cd09db:	b9 c8 07 00 00       	mov    ecx,0x7c8
    186cd09e0:	e8 f7 b2 87 00       	call   0x18754bcdc
    186cd09e5:	48 b9 01 00 00 00 01 	movabs rcx,0x100000001
-   186cd09ec:	00 00 00
+   186cd09ec:	00 00 00 
    186cd09ef:	48 89 48 08          	mov    QWORD PTR [rax+0x8],rcx
    186cd09f3:	48 8d 0d 8e ed 02 03 	lea    rcx,[rip+0x302ed8e]        # 0x189cff788
    186cd09fa:	48 89 08             	mov    QWORD PTR [rax],rcx

@@ -56,9 +56,9 @@ def _error_status(code):
         return 415
     if code in ('queue_full', 'sender_busy'):
         return 429
-    if code in ('worker_unavailable', 'send_worker_unavailable'):
+    if code in ('worker_unavailable', 'send_worker_unavailable', 'local_emoji_unavailable'):
         return 503
-    if code in ('native_send_failed',):
+    if code in ('native_send_failed', 'native_message_failed'):
         return 502
     return 400
 
@@ -128,6 +128,8 @@ class BridgeRuntime:
         self.send_worker = SendWorker(pid, config.send, on_event=self.log)
         from message_tracker import MessageTracker
         self.tracker = MessageTracker(self.source, self.query, on_transition=self.log)
+        if requests is not None:
+            self.tracker.restore_recorded(requests, self.source.message_by_local_id)
         self._media_state = {}
         self.threads = []
         self._start_thread(self._receive_loop, 'bridge-receive')
@@ -666,6 +668,7 @@ class BridgeService:
         except Exception:
             since = None
         self._log(dict(event='send_dispatched', request_id=request_id, kind=kind,
+                       native_kind=native['kind'],
                        since_seq=since))
         try:
             result = runtime.send_worker.dispatch(native)
@@ -682,7 +685,8 @@ class BridgeService:
                                  detail=result.get('detail'),
                                  reason=None if since is not None else 'message_tracking_unavailable')
             if since is not None:
-                runtime.tracker.watch(request_id, kind=kind, conversation=recipient,
+                runtime.tracker.watch(request_id, kind=native['kind'], conversation=recipient,
+                                      md5=bytes(native['emoji_fields']['md5']).decode('ascii') if native['kind'] == 'emoji' else None,
                                       text=payload.get('text'), since_seq=since)
             return
         if result.get('timed_out') or result.get('unsafe'):
@@ -862,9 +866,13 @@ def main(argv=None):
         except (AttributeError, ValueError):
             pass
     service.start()
+    from service_lifecycle import ServiceStop
+    lifecycle = ServiceStop(Path(__file__).resolve().parent.parent / 'agent/data/service-control')
     deadline = time.monotonic() + config.seconds if config.seconds else None
     try:
         while not stop.is_set():
+            if lifecycle.requested():
+                break
             if deadline is not None and time.monotonic() >= deadline:
                 break
             time.sleep(0.5)
@@ -873,7 +881,10 @@ def main(argv=None):
             final_health = service.health()
         except Exception:
             final_health = dict(state='stopped')
-        service.close()
+        try:
+            service.close()
+        finally:
+            lifecycle.close()
         session.unlink(missing_ok=True)
         print(json.dumps(dict(event='bridge_stopped', health=final_health), ensure_ascii=False))
     return 0

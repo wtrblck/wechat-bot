@@ -6,6 +6,7 @@ import { BridgeClient } from './bridge/client.js';
 import { DshHostAdapter } from './runtime/host-adapter.js';
 import { Engine } from './engine.js';
 import { channelTools } from './tools/channel-tools.js';
+import { installServiceStop } from './runtime/service-lifecycle.js';
 
 export const name = 'wechat-agent';
 export const inject = ['llm', 'attachments', 'agents', 'sessionPersistence', 'sessions', 'tools', 'systemPrompt', 'agentLoop'];
@@ -21,4 +22,6 @@ export async function apply(ctx: Context, options: { configFile?: string } = {})
   catch (error) { store.close(); throw error; }
   ctx.effect(() => () => engine.close());
   await engine.start();
+  const lifecycle = installServiceStop(config.root, () => process.emit('SIGTERM'));
+  ctx.effect(() => () => lifecycle.close());
 }

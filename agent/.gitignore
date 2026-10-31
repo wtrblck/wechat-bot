@@ -6,3 +6,5 @@ research/
 config/*.local.yaml
 .env
 *.local.yml
+tools/video-python/
+config/*.cookies.local.txt

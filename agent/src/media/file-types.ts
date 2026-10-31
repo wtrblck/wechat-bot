@@ -1,4 +1,14 @@
 export type ImageMime = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+export function videoType(bytes: Uint8Array): { mime: string; extension: string } | undefined {
+  const b = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (b.subarray(4, 8).toString('ascii') === 'ftyp') return { mime: 'video/mp4', extension: 'mp4' };
+  if (b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))) return { mime: 'video/x-matroska', extension: 'mkv' };
+  if (b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'AVI ') return { mime: 'video/x-msvideo', extension: 'avi' };
+  if (b.subarray(0, 3).toString() === 'FLV') return { mime: 'video/x-flv', extension: 'flv' };
+  if (b.subarray(0, 4).toString() === 'OggS') return { mime: 'video/ogg', extension: 'ogv' };
+  if (b.length > 188 && b[0] === 0x47 && b[188] === 0x47) return { mime: 'video/mp2t', extension: 'ts' };
+  if (b.subarray(0, 4).equals(Buffer.from([0, 0, 1, 0xba])) || b.subarray(0, 4).equals(Buffer.from([0, 0, 1, 0xb3]))) return { mime: 'video/mpeg', extension: 'mpg' };
+}
 export function imageType(bytes: Uint8Array): { mime: ImageMime; extension: string } | undefined {
   const b = Buffer.from(bytes);
   if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return { mime: 'image/png', extension: 'png' };

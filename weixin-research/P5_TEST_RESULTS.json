@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-29",
+  "scope": "P5 request state, message IDs and restart-safe idempotency",
+  "delivery_semantics": {
+    "accepted": "native send returned local success",
+    "delivery_verified": false,
+    "note": "No service path sets delivery_verified; only manual device confirmations can claim target receipt."
+  },
+  "live_evidence": {
+    "latest_text_with_both_workers": {
+      "request_id": "final5d975f86",
+      "recipient": "filehelper",
+      "state": "server_confirmed",
+      "accepted": true,
+      "message_id": "filehelper:37",
+      "server_id": "2789436282422745060",
+      "delivery_verified": false,
+      "service_state": "ready",
+      "send_ready": true,
+      "receive_ready": true,
+      "send_worker_and_download_worker": "both alive, one session each, job_state=2 after close",
+      "source": "bridge_service.py with --download, 40 seconds, /send/text wait=false then /request/{id}"
+    },
+    "text": {
+      "request_id": "p5debuge2daa009",
+      "recipient": "filehelper",
+      "state": "server_confirmed",
+      "accepted": true,
+      "message_id": "filehelper:34",
+      "local_id": 34,
+      "server_id": "2582480765053761899",
+      "delivery_verified": false,
+      "source": "local message database correlated by sort_seq after the native send"
+    },
+    "emoji": {
+      "request_id": "emojied7add49",
+      "recipient": "filehelper",
+      "state": "server_confirmed",
+      "accepted": true,
+      "message_id": "filehelper:38",
+      "local_id": 38,
+      "server_id": "795560054143058110",
+      "delivery_verified": false,
+      "source": "bridge_service.py --emoji; one persistent send worker session; tracker re-read the same row for server_id"
+    },
+    "image": {
+      "request_id": "p5image27cd6b",
+      "recipient": "filehelper",
+      "state": "message_recorded",
+      "accepted": true,
+      "message_id": "filehelper:35",
+      "local_id": 35,
+      "server_id": "0",
+      "reason": "server_id_pending",
+      "note": "The local row appeared immediately; its server_id was later updated in place by WeChat, which is why the tracker re-reads the found row."
+    },
+    "voice": {
+      "request_id": "v94ee9975",
+      "recipient": "filehelper",
+      "state": "local_accepted",
+      "accepted": true,
+      "note": "Native accepted; no delivery claim. A previous attempt failed before the native call with invalid_media and made no message."
+    }
+  },
+  "state_machine_tests": {
+    "prepared_queued_sending_local_accepted": "covered",
+    "message_recorded_server_confirmed": "covered against a fake source and a real database row",
+    "missing_row_becomes_unknown_not_failed": "covered",
+    "restart_recovery_marks_inflight_unknown": "covered",
+    "same_request_same_result_across_reopen": "covered",
+    "same_request_different_content_conflict": "covered",
+    "queue_full_429": "covered",
+    "cancel_before_dispatch": "covered",
+    "native_failure_502": "covered",
+    "worker_timeout_marks_unknown": "covered by send_worker result mapping; no automatic retry"
+  },
+  "automated_tests": {
+    "unittest_files": ["tests/test_request_store.py", "tests/test_bridge_service.py"],
+    "count": 16
+  },
+  "limitations": [
+    "Only local/server acknowledgement is observed; target receipt still needs the manual phone ledger.",
+    "A request whose message never appears becomes unknown after 60 seconds; no retry is attempted.",
+    "Media server IDs can arrive after the 120-second confirmation window; state remains message_recorded rather than being guessed."
+  ]
+}

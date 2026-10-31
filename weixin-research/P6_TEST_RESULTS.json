@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-29",
+  "scope": "P6 unified resident bridge, persistent workers, queues, persistence, recovery",
+  "service": {
+    "entry": "bridge_service.py",
+    "single_process": true,
+    "single_http_server": true,
+    "default_lifetime": "unbounded",
+    "loopback_only": true,
+    "token_file": "runs/bridge/token",
+    "event_journal": "runs/bridge/events.db",
+    "request_store": "runs/bridge/requests.db",
+    "send_queue_capacity_default": 64,
+    "send_timeout_ms_default": 20000,
+    "supervisor_interval_s_default": 3
+  },
+  "persistent_workers": {
+    "send": {
+      "session": "one Frida attach, one pinned script, one checkpoint interceptor",
+      "fixture_jobs_in_one_session": 8,
+      "kinds": ["text", "text", "text", "text", "image", "file", "video", "voice"],
+      "largest_text_bytes": 2012,
+      "process_alive_after_close": true,
+      "evidence": "runs/fixture-send-worker/results.json"
+    },
+    "download": {
+      "session": "one Frida attach, one pinned script, one checkpoint interceptor",
+      "fixture_jobs_in_one_session": 3,
+      "results": ["native_completed", "native_completed", "request_failed (identity mismatch)"],
+      "process_alive_after_close": true,
+      "evidence": "runs/fixture-download-worker/results.json"
+    },
+    "checkpoint_restored_after_close": true,
+    "note": "The checkpoint entry bytes were read before start, while a session was active, and after close; the original prologue returned after close."
+  },
+  "live_service": {
+    "state": "ready",
+    "send_ready": true,
+    "receive_ready": true,
+    "pid_verified": true,
+    "workers_alive": 2,
+    "media_enabled": true,
+    "download_enabled": true,
+    "receive_source": "wechat-db",
+    "observed_uptime_s": 40.0,
+    "close_clean": true,
+    "session_file_removed": true,
+    "final_text_request": {
+      "request_id": "final5d975f86",
+      "state": "server_confirmed",
+      "message_id": "filehelper:37",
+      "server_id": "2789436282422745060",
+      "delivery_verified": false
+    },
+    "emoji_request": {
+      "request_id": "emojied7add49",
+      "state": "server_confirmed",
+      "message_id": "filehelper:38",
+      "server_id": "795560054143058110",
+      "note": "same persistent send worker; type-47 path verified through /send/emoji"
+    }
+  },
+  "persistence": {
+    "event_journal": "bounded SQLite spool; old cursors read the durable tail or get truncated=true",
+    "requests": "SQLite; same request_id/fingerprint returns the stored result after restart",
+    "in_flight_recovery": "prepared/queued/sending -> unknown; never retried automatically",
+    "retention": "events 7 days/50000 rows, request purge follows retention_days"
+  },
+  "automated_tests": {
+    "full_suite": 118,
+    "service_tests": 9,
+    "event_journal_tests": 3,
+    "bridge_config_tests": 5,
+    "worker_integration_scripts": ["integration_send_worker.py", "integration_download_worker.py"]
+  },
+  "explicitly_not_done": [
+    "The handoff's 10-minute / 1-hour / longer stability acceptance was not run, by user instruction.",
+    "No 7x24 claim, no memory/CPU soak numbers, no external-contact or group regression under the resident service."
+  ]
+}
+
+

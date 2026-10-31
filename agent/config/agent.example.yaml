@@ -41,6 +41,17 @@ memory:
     timeoutMs: 15000
     maxBytes: 32768
     maxTokens: 8000
+social:
+  enabled: true
+  toneMinutes: 30
+  careCooldownHours: 24
+  proactive:
+    enabled: false
+    contacts: []
+    maxPerContactPerDay: 1
+    minIdleMinutes: 30
+    quietStartHour: 22
+    quietEndHour: 9
 prompts:
   profile: default
 promptProfiles:
@@ -54,6 +65,26 @@ media:
   maxImagesPerReply: 6
 sandbox:
   directory: data/sandbox
+video:
+  enabled: true
+  python: py
+  maxInputMiB: 128
+  maxDurationSeconds: 3600
+  timeoutSeconds: 90
+  frames: 12
+  bilibili: true
+  douyin: true
+  bilibiliCookies: config/bilibili.cookies.local.txt
+  douyinCookies: config/douyin.cookies.local.txt
+  asr:
+    backend: local
+    localModel: data/video-models/faster-whisper-base
+    maxSeconds: 180
+stickers:
+  enabled: true
+  directory: data/stickers
+  maxFiles: 512
+  maxFileMiB: 10
 egress:
   sendArtifacts: true
 externalAccess:

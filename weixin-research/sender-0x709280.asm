@@ -10,10 +10,10 @@ Disassembly of section .text:
    180709282:	57                   	push   rdi
    180709283:	48 81 ec 90 00 00 00 	sub    rsp,0x90
    18070928a:	48 8d ac 24 80 00 00 	lea    rbp,[rsp+0x80]
-   180709291:	00
+   180709291:	00 
    180709292:	0f 29 75 00          	movaps XMMWORD PTR [rbp+0x0],xmm6
    180709296:	48 c7 45 f8 fe ff ff 	mov    QWORD PTR [rbp-0x8],0xfffffffffffffffe
-   18070929d:	ff
+   18070929d:	ff 
    18070929e:	48 89 d6             	mov    rsi,rdx
    1807092a1:	48 89 cf             	mov    rdi,rcx
    1807092a4:	48 8d 05 7d 84 91 08 	lea    rax,[rip+0x891847d]        # 0x189021728
@@ -66,7 +66,7 @@ Disassembly of section .text:
    180709349:	eb 0b                	jmp    0x180709356
    18070934b:	48 89 06             	mov    QWORD PTR [rsi],rax
    18070934e:	48 c7 46 08 00 00 00 	mov    QWORD PTR [rsi+0x8],0x0
-   180709355:	00
+   180709355:	00 
    180709356:	48 8d 4d c0          	lea    rcx,[rbp-0x40]
    18070935a:	e8 51 8d d9 ff       	call   0x1804a20b0
    18070935f:	80 7d b8 01          	cmp    BYTE PTR [rbp-0x48],0x1

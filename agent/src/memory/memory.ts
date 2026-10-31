@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { hash, type Message, type Session } from '../contracts.js';
 import type { Store, Row } from '../storage/database.js';
 import { MemoryFiles } from './files.js';
+import { SocialMemory, socialSchema } from './social.js';
 
 // Explicit byte allowance, not a tokenizer. UTF-8 bytes conservatively bound text tokens.
 export function fitJson(items: unknown[], budget: number): unknown[] {
@@ -21,6 +22,7 @@ export const summarySchema = z.strictObject({
     states: z.array(z.string().trim().min(1).max(40)).max(4),
     aliases: z.array(z.string().trim().min(1).max(40)).max(5),
   }).refine(v => Object.values(v).flat().length >= 1 && Object.values(v).flat().length <= 10, 'one_to_ten_tags'),
+  social: z.array(socialSchema).max(8).optional(),
 });
 export type HistoryItem = { position: number; message: Message };
 // Retrieval-pressure estimate, deliberately conservative for Chinese. Not a provider tokenizer or billing counter.
@@ -31,7 +33,8 @@ export function estimateRecallTokens(text: string) {
 }
 export class Memory {
   readonly files: MemoryFiles;
-  constructor(readonly store: Store) { this.files = new MemoryFiles(store.config.root); }
+  readonly social: SocialMemory;
+  constructor(readonly store: Store) { this.files = new MemoryFiles(store.config.root); this.social = new SocialMemory(store); }
   source(m: Message) {
     const route = hash(['wechat', m.accountKey, m.scope, m.conversationId]);
     const attachment = this.store.mediaDescriptor(route, m.messageId);
@@ -73,11 +76,13 @@ export class Memory {
     const start = batch[0]!, end = batch[batch.length - 1]!;
     const id = hash([session.key, start.position, end.position, version]);
     const startTime = Math.min(...batch.map(b => b.message.timestampMs)), endTime = Math.max(...batch.map(b => b.message.timestampMs));
+    const { social, ...summary } = parsed;
     const document = { format: 'wechat-summary-v2', id, scope: session.key, startPosition: start.position,
-      endPosition: end.position, startTime, endTime, messageCount: batch.length, ...parsed };
+      endPosition: end.position, startTime, endTime, messageCount: batch.length, ...summary };
     // File first, then index + coverage atomically. An unindexed orphan is overwritten on retry.
     const path = this.files.write(session.key, startTime, id, document);
     this.store.transaction(() => {
+      this.social.record(session, social ?? [], batch.map(b => b.message));
       this.store.exec('INSERT OR IGNORE INTO memory_segments VALUES(?,?,?,?,?,?,?,?,?,?,?)', id, session.key,
         start.position, end.position, startTime, endTime, parsed.title, JSON.stringify(parsed.tags), parsed.summary, path, this.store.clock());
       this.store.exec(`INSERT INTO summary_checkpoints VALUES(?,?,?) ON CONFLICT(route) DO UPDATE SET

@@ -9,11 +9,11 @@ Disassembly of section .text:
    181094191:	48 83 ec 30          	sub    rsp,0x30
    181094195:	48 8d 6c 24 30       	lea    rbp,[rsp+0x30]
    18109419a:	48 c7 45 f8 fe ff ff 	mov    QWORD PTR [rbp-0x8],0xfffffffffffffffe
-   1810941a1:	ff
+   1810941a1:	ff 
    1810941a2:	48 8d 05 bf 2b 10 08 	lea    rax,[rip+0x8102bbf]        # 0x189196d68
    1810941a9:	48 89 01             	mov    QWORD PTR [rcx],rax
    1810941ac:	48 c7 41 68 00 00 00 	mov    QWORD PTR [rcx+0x68],0x0
-   1810941b3:	00
+   1810941b3:	00 
    1810941b4:	c7 41 48 00 00 00 00 	mov    DWORD PTR [rcx+0x48],0x0
    1810941bb:	0f 57 c0             	xorps  xmm0,xmm0
    1810941be:	0f 11 41 08          	movups XMMWORD PTR [rcx+0x8],xmm0

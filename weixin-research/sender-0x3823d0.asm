@@ -53,7 +53,7 @@ Disassembly of section .text:
    180382454:	48 31 e0             	xor    rax,rsp
    180382457:	48 89 44 24 38       	mov    QWORD PTR [rsp+0x38],rax
    18038245c:	48 83 b9 60 04 00 00 	cmp    QWORD PTR [rcx+0x460],0x0
-   180382463:	00
+   180382463:	00 
    180382464:	74 1d                	je     0x180382483
    180382466:	48 8b 87 68 04 00 00 	mov    rax,QWORD PTR [rdi+0x468]
    18038246d:	48 85 c0             	test   rax,rax

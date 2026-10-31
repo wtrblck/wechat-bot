@@ -28,7 +28,9 @@
     "thread_checkpoint": "0x4a1fd0",
     "emoji_factory": "0x1c12a00",
     "emoji_construct": "0x20a2800",
-    "emoji_new": "0x754bcdc"
+    "emoji_new": "0x754bcdc",
+    "emoji_import": "0x6978540",
+    "emoji_local_copy": "0x22fc160"
   },
   "download": {
     "context": "0x47220",
@@ -41,7 +43,9 @@
     "thread_checkpoint": "0x4a1fd0"
   },
   "emoji": {
-    "control_vtable": "0x908aa98"
+    "control_vtable": "0x908aa98",
+    "local_control_vtable": "0x9431d38",
+    "local_resource_vtable": "0x9431c28"
   },
   "download_result_vtable": "0x928c3d8",
   "notes": "Offsets are valid only for this SHA256. New versions need a new file and fresh verification; never reuse these numbers across versions."

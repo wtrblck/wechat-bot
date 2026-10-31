@@ -1,0 +1,73 @@
+[
+  {
+    "event": "attached",
+    "pid": 32200,
+    "arch": "x64",
+    "module": "E:\\Tencent\\Weixin\\4.1.15.56\\Weixin.dll",
+    "sites": [
+      "text_send_candidate",
+      "send_stage_candidate_a",
+      "send_stage_candidate_b",
+      "sync_process_candidate",
+      "sync_database_candidate"
+    ]
+  },
+  {
+    "event": "counts",
+    "counts": {
+      "text_send_candidate": 0,
+      "send_stage_candidate_a": 0,
+      "send_stage_candidate_b": 0,
+      "sync_process_candidate": 0,
+      "sync_database_candidate": 0
+    }
+  },
+  {
+    "event": "counts",
+    "counts": {
+      "text_send_candidate": 0,
+      "send_stage_candidate_a": 1,
+      "send_stage_candidate_b": 1,
+      "sync_process_candidate": 0,
+      "sync_database_candidate": 0
+    }
+  },
+  {
+    "event": "counts",
+    "counts": {
+      "text_send_candidate": 0,
+      "send_stage_candidate_a": 1,
+      "send_stage_candidate_b": 1,
+      "sync_process_candidate": 0,
+      "sync_database_candidate": 0
+    }
+  },
+  {
+    "event": "counts",
+    "counts": {
+      "text_send_candidate": 0,
+      "send_stage_candidate_a": 1,
+      "send_stage_candidate_b": 1,
+      "sync_process_candidate": 0,
+      "sync_database_candidate": 0
+    }
+  },
+  {
+    "event": "counts",
+    "counts": {
+      "text_send_candidate": 0,
+      "send_stage_candidate_a": 2,
+      "send_stage_candidate_b": 2,
+      "sync_process_candidate": 1,
+      "sync_database_candidate": 1
+    }
+  },
+  {
+    "event": "cleanup_error",
+    "detail": "script has been destroyed"
+  },
+  {
+    "event": "unload_error",
+    "detail": "script is destroyed"
+  }
+]

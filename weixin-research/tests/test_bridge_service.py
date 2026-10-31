@@ -13,7 +13,6 @@ from bridge_config import BridgeConfig
 from bridge_service import BridgeService
 from policy import ObservePolicy, SendPolicy
 from receive_api import EventStore
-from offline_native import patch_sender
 
 
 class FakeTracker:
@@ -95,7 +94,6 @@ class FakeRuntime:
 
 class BridgeServiceTest(unittest.TestCase):
     def setUp(self):
-        patch_sender(self)
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         root = Path(self.directory.name)
@@ -189,6 +187,45 @@ class BridgeServiceTest(unittest.TestCase):
         self.assertEqual(status, 400, error)
         self.assertTrue(error['error'].startswith('media_'))
         self.assertEqual(self.service.runtime.send_worker.calls, [])
+
+    def test_image_request_tracks_actual_emoji_kind_and_deduplicates(self):
+        from unittest.mock import patch
+        native = dict(active_experiment=dict(kind='emoji', recipient_bytes=list(b'filehelper'),
+            path='staged.gif', local_emoji=True, emoji_type=4, emoji_fields={'md5': list(b'a' * 32)}))
+        body = dict(request_id='gif-native', recipient='filehelper', path='source.gif')
+        with patch('bridge_service.config_for', return_value=native):
+            status, result = self.request('/send/image', body, method='POST')
+            self.assertEqual(status, 200, result)
+            self.request('/send/image', body, method='POST')
+        calls = self.service.runtime.send_worker.calls
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]['kind'], 'emoji')
+        self.assertTrue(calls[0]['local_emoji'])
+        self.assertEqual(self.service.runtime.tracker.jobs['gif-native']['kind'], 'emoji')
+
+    def test_real_gif_preparation_uses_emoji_without_catalog_and_failure_is_cached(self):
+        from PIL import Image
+        root = Path(self.directory.name)
+        path = root / 'animation.jpg'  # content determines routing, not suffix
+        Image.new('RGB', (8, 6), 'red').save(path, format='GIF', save_all=True,
+            append_images=[Image.new('RGB', (8, 6), 'blue')], duration=[80, 120], loop=2)
+        self.config.send = SendPolicy(recipients=self.policy.recipients, media_roots=(root,))
+        body = dict(request_id='real-gif', recipient='filehelper', path=str(path))
+        status, result = self.request('/send/image', body, method='POST')
+        self.assertEqual(status, 200, result)
+        call = self.service.runtime.send_worker.calls[0]
+        self.assertEqual(call['kind'], 'emoji')
+        self.assertEqual(call['emoji_type'], 4)
+        self.assertEqual(self.service.runtime.tracker.jobs['real-gif']['kind'], 'emoji')
+        self.assertIsNone(self.service.emoji_catalog)
+        self.request('/send/image', body, method='POST')
+        self.assertEqual(len(self.service.runtime.send_worker.calls), 1)
+        self.service.runtime.send_worker.accepted = False
+        body['request_id'] = 'failed-gif'
+        status, result = self.request('/send/image', body, method='POST')
+        self.assertEqual(result['state'], 'failed', result)
+        self.request('/send/image', body, method='POST')
+        self.assertEqual(len(self.service.runtime.send_worker.calls), 2)
 
     def test_supervisor_replaces_dead_runtime_and_marks_lost_tracking_unknown(self):
         root = Path(self.directory.name) / 'reconnect'

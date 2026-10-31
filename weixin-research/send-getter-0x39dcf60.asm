@@ -11,13 +11,13 @@ Disassembly of section .text:
    1839dcf63:	53                   	push   rbx
    1839dcf64:	48 81 ec 28 01 00 00 	sub    rsp,0x128
    1839dcf6b:	48 8d ac 24 80 00 00 	lea    rbp,[rsp+0x80]
-   1839dcf72:	00
+   1839dcf72:	00 
    1839dcf73:	48 c7 85 a0 00 00 00 	mov    QWORD PTR [rbp+0xa0],0xfffffffffffffffe
-   1839dcf7a:	fe ff ff ff
+   1839dcf7a:	fe ff ff ff 
    1839dcf7e:	48 89 d3             	mov    rbx,rdx
    1839dcf81:	48 89 ce             	mov    rsi,rcx
    1839dcf84:	48 b8 aa aa aa aa aa 	movabs rax,0xaaaaaaaaaaaaaaaa
-   1839dcf8b:	aa aa aa
+   1839dcf8b:	aa aa aa 
    1839dcf8e:	48 89 85 90 00 00 00 	mov    QWORD PTR [rbp+0x90],rax
    1839dcf95:	0f 28 05 14 9c 53 05 	movaps xmm0,XMMWORD PTR [rip+0x5539c14]        # 0x188f16bb0
    1839dcf9c:	0f 29 85 80 00 00 00 	movaps XMMWORD PTR [rbp+0x80],xmm0
@@ -89,10 +89,10 @@ Disassembly of section .text:
    1839dd092:	0f 57 c0             	xorps  xmm0,xmm0
    1839dd095:	0f 11 03             	movups XMMWORD PTR [rbx],xmm0
    1839dd098:	48 c7 43 10 00 00 00 	mov    QWORD PTR [rbx+0x10],0x0
-   1839dd09f:	00
+   1839dd09f:	00 
    1839dd0a0:	48 89 9d 98 00 00 00 	mov    QWORD PTR [rbp+0x98],rbx
    1839dd0a7:	48 c7 43 18 0f 00 00 	mov    QWORD PTR [rbx+0x18],0xf
-   1839dd0ae:	00
+   1839dd0ae:	00 
    1839dd0af:	8b 45 28             	mov    eax,DWORD PTR [rbp+0x28]
    1839dd0b2:	89 c1                	mov    ecx,eax
    1839dd0b4:	83 e1 22             	and    ecx,0x22

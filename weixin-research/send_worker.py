@@ -13,6 +13,8 @@ def payload_from_config(config, timeout_ms=20000):
                 voice_bytes=request.get('voice_bytes'),
                 duration_ms=request.get('duration_ms'),
                 emoji_fields=request.get('emoji_fields'),
+                local_emoji=request.get('local_emoji', False),
+                local_emoji_size=request.get('local_emoji_size'),
                 emoji_type=request.get('emoji_type'), timeout_ms=timeout_ms)
 
 

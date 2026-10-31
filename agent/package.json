@@ -1,6 +1,6 @@
 {
   "name": "@wechat-bot/dsh-channel",
-  "version": "0.1.3",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
@@ -20,12 +20,12 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test dist/tests/*.test.js && node --test tests/setup.test.mjs",
+    "test": "npm run build && node --test dist/tests/*.test.js",
     "check": "node dist/src/cli.js check",
     "diagnose": "node dist/src/cli.js diagnose",
     "budget": "node dist/src/cli.js budget",
-    "preview": "node dist/src/cli.js preview",
-    "setup": "npm run build && node scripts/setup.mjs"
+    "admin": "node dist/src/admin-cli.js",
+    "preview": "node dist/src/cli.js preview"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "4.0.5",
@@ -51,11 +51,5 @@
     "@deepseek-ai/dsh-typert-registry": "0.2.1-rc.2",
     "@types/node": "24.10.0",
     "typescript": "5.9.3"
-  },
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/wtrblck/wechat-bot.git"
-  },
-  "homepage": "https://github.com/wtrblck/wechat-bot#readme"
+  }
 }

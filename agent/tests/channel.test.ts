@@ -115,6 +115,19 @@ test('new answer during generation cancels unsubmitted group reply after recheck
   await f.engine.tick(); await f.engine.drain();
   assert.equal(f.store.one('SELECT count(*) n FROM outbox')!.n, 0); assert.equal(f.host.calls.length, 3); await f.engine.close();
 });
+
+test('a follow-up during generation can approve the answer using the new message ID', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
+  f.host.hook = async input => { if (input.purpose === 'reply') {
+    f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '我想问具体细节')] });
+  } };
+  await f.engine.tick(); await f.engine.drain();
+  assert.equal(f.store.one('SELECT state FROM outbox')!.state, 'prepared');
+  const reply = f.store.one("SELECT state,result FROM runs WHERE purpose='reply'")!;
+  assert.equal(reply.state, 'completed'); assert.equal(JSON.parse(reply.result).status, 'completed');
+  await f.engine.close();
+});
 test('two groups and one direct chat never share session IDs, contexts or reply targets', async () => {
   const f = fixture(); f.bridge.page = { cursor: 3, truncated: false, events: [event(1, 'group-a@chatroom', '独有甲问题？'),
     event(2, 'group-b@chatroom', '独有乙问题？'), event(3, 'contact-a', '/ai 独有丙问题')] };
@@ -122,6 +135,69 @@ test('two groups and one direct chat never share session IDs, contexts or reply 
   const replies = f.host.calls.filter(c => c.purpose === 'reply'); assert.equal(replies.length, 3);
   assert.equal(new Set(replies.map(c => c.session.id)).size, 3);
   assert.ok(replies.every(c => ['甲', '乙', '丙'].filter(s => c.context.includes(s)).length === 1)); await f.engine.close();
+});
+
+test('queued group reply survives a follow-up and changed topic label after semantic review', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
+  await f.engine.tick(); await f.engine.drain();
+  const original = f.store.one('SELECT id FROM outbox')!.id;
+  const execute = f.host.execute.bind(f.host);
+  f.host.execute = async (input, signal) => {
+    const result = await execute(input, signal);
+    if (input.purpose === 'decision' && JSON.parse(input.context).stage === 'before_send') {
+      const decision = JSON.parse(result.replies[0]!.text);
+      decision.topicId = 'same-conversation-with-a-new-label';
+      result.replies[0]!.text = JSON.stringify(decision);
+    }
+    return result;
+  };
+  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '再解释一下细节')] };
+  await f.engine.tick(); await f.engine.drain();
+  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', original)!.state, 'server_confirmed');
+  assert.ok(f.bridge.posts.some(body => JSON.parse(body).request_id === original));
+  assert.ok(f.host.calls.some(call => call.purpose === 'decision' && JSON.parse(call.context).stage === 'before_send'));
+  await f.engine.close();
+});
+
+test('queued group reply is cancelled only when semantic review says silent', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
+  await f.engine.tick(); await f.engine.drain();
+  const original = f.store.one('SELECT id FROM outbox')!.id;
+  f.host.action = 'silent';
+  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '已经解决，不用回复')] };
+  await f.engine.tick(); await f.engine.drain();
+  const row = f.store.one('SELECT state,result FROM outbox WHERE id=?', original)!;
+  assert.equal(row.state, 'cancelled'); assert.equal(JSON.parse(row.result).reason, 'participation_superseded');
+  assert.equal(f.bridge.posts.length, 0);
+  await f.engine.close();
+});
+
+test('outgoing group echo does not cancel a queued answer or trigger a review', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
+  await f.engine.tick(); await f.engine.drain();
+  const original = f.store.one('SELECT id FROM outbox')!.id;
+  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '上一条回声', { sender: 'self', direction: 'outgoing' })] };
+  await f.engine.tick();
+  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', original)!.state, 'server_confirmed');
+  assert.equal(f.host.calls.filter(call => call.purpose === 'decision').length, 1);
+  await f.engine.close();
+});
+
+test('unavailable queued review preserves the answer and does not create a permanent group review block', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
+  await f.engine.tick(); await f.engine.drain();
+  const original = f.store.one('SELECT id FROM outbox')!.id;
+  f.host.hook = async input => { if (input.purpose === 'decision') throw Error('offline'); };
+  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '补充细节')] };
+  await f.engine.tick(); await f.engine.drain();
+  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', original)!.state, 'prepared');
+  assert.equal(f.bridge.posts.length, 0);
+  assert.equal(f.store.one("SELECT count(*) n FROM runs WHERE purpose='decision' AND state='needs_review'")!.n, 0);
+  await f.engine.close();
 });
 test('UTF-8 chunks preserve complete graphemes and stable request IDs', () => {
   const text = '中文👨‍👩‍👧‍👦e\u0301🇨🇳\n'.repeat(200);
@@ -162,6 +238,48 @@ test('orphaned execution becomes needs_review and is not retried', async () => {
   const f = fixture(); const s = f.store.session(normalize(event(1), f.store.config)!);
   f.store.startRun({ session: s, inputId: 'orphan', executionId: 'lost', purpose: 'reply', system: '', context: '', provider: 'mock', model: 'test' }, []);
   await f.engine.recover(); assert.equal(f.store.one('SELECT state FROM runs')!.state, 'needs_review'); assert.equal(f.host.calls.length, 0); await f.engine.close();
+});
+
+test('expired unprojected group review stops blocking fresh group participation without replay', async () => {
+  const f = fixture();
+  const old = event(1, 'group-a@chatroom', 'old group question');
+  f.store.ingest({ cursor: 1, truncated: false, events: [old] });
+  const session = f.store.session(normalize(old, f.store.config)!);
+  const source = f.store.one('SELECT id FROM inbox')!.id;
+  f.store.startRun({ session, inputId: 'old-group', executionId: 'old-execution', purpose: 'reply', system: '', context: '', provider: 'mock', model: 'test' }, [source]);
+  f.store.completeRun('old-group', 'needs_review', { status: 'needs_review', replies: [] });
+  f.advance((f.store.config.ingress.maxMessageAgeSeconds + 1) * 1000);
+  const fresh = event(2, 'group-a@chatroom', 'new group question', { timestamp: (now + (f.store.config.ingress.maxMessageAgeSeconds + 1) * 1000) / 1000 });
+  f.store.ingest({ cursor: 2, truncated: false, events: [fresh] });
+  f.advance(10000);
+  await f.engine.pump(); await f.engine.drain();
+  assert.equal(f.store.one("SELECT state FROM runs WHERE id='old-group'")!.state, 'cancelled');
+  assert.equal(f.store.one('SELECT state FROM inbox WHERE id=?', source)!.state, 'cancelled');
+  assert.ok(f.host.calls.some(call => call.purpose === 'decision'));
+  assert.ok(f.host.calls.every(call => call.inputId !== 'old-group'));
+  assert.equal(f.bridge.posts.length, 0);
+  await f.engine.close();
+});
+
+test('fresh group review and uncertain group delivery remain blocked', async () => {
+  for (const uncertain of [false, true]) {
+    const f = fixture();
+    const message = event(1, 'group-a@chatroom', 'group question');
+    f.store.ingest({ cursor: 1, truncated: false, events: [message] });
+    const session = f.store.session(normalize(message, f.store.config)!);
+    const source = f.store.one('SELECT id FROM inbox')!.id;
+    f.store.startRun({ session, inputId: 'review', executionId: 'execution', purpose: 'reply', system: '', context: '', provider: 'mock', model: 'test' }, [source]);
+    f.store.completeRun('review', 'needs_review', { status: 'needs_review', replies: [] });
+    if (uncertain) {
+      f.store.prepareReply(session, 'unknown-reply', 'uncertain');
+      f.store.exec("UPDATE outbox SET state='unknown',submitted=1");
+      f.advance((f.store.config.ingress.maxMessageAgeSeconds + 1) * 1000);
+    }
+    await f.engine.pump();
+    assert.equal(f.store.one("SELECT state FROM runs WHERE id='review'")!.state, 'needs_review');
+    assert.equal(f.host.calls.length, 0); assert.equal(f.bridge.posts.length, 0);
+    await f.engine.close();
+  }
 });
 test('strict configuration rejects unknown keys, identity placeholders and cross session sharing', () => {
   assert.throws(() => config({ unexpected: true })); assert.throws(() => config({ sessions: { isolation: 'conversation', crossSessionMemory: true } }));

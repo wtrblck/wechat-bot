@@ -10,17 +10,17 @@ Disassembly of section .text:
    1855f1b92:	48 83 ec 78          	sub    rsp,0x78
    1855f1b96:	48 8d 6c 24 70       	lea    rbp,[rsp+0x70]
    1855f1b9b:	48 c7 45 00 fe ff ff 	mov    QWORD PTR [rbp+0x0],0xfffffffffffffffe
-   1855f1ba2:	ff
+   1855f1ba2:	ff 
    1855f1ba3:	48 8b 71 08          	mov    rsi,QWORD PTR [rcx+0x8]
    1855f1ba7:	48 c7 45 e8 00 00 00 	mov    QWORD PTR [rbp-0x18],0x0
-   1855f1bae:	00
+   1855f1bae:	00 
    1855f1baf:	b9 30 00 00 00       	mov    ecx,0x30
    1855f1bb4:	e8 23 a1 f5 01       	call   0x18754bcdc
    1855f1bb9:	48 89 45 e0          	mov    QWORD PTR [rbp-0x20],rax
    1855f1bbd:	48 c7 45 f0 21 00 00 	mov    QWORD PTR [rbp-0x10],0x21
-   1855f1bc4:	00
+   1855f1bc4:	00 
    1855f1bc5:	48 c7 45 f8 2f 00 00 	mov    QWORD PTR [rbp-0x8],0x2f
-   1855f1bcc:	00
+   1855f1bcc:	00 
    1855f1bcd:	0f 10 05 7c 55 41 04 	movups xmm0,XMMWORD PTR [rip+0x441557c]        # 0x189a07150 ; send_text_message_failed (logout)
    1855f1bd4:	0f 11 00             	movups XMMWORD PTR [rax],xmm0
    1855f1bd7:	0f 10 05 82 55 41 04 	movups xmm0,XMMWORD PTR [rip+0x4415582]        # 0x189a07160 ; e_failed (logout)
@@ -64,7 +64,7 @@ Disassembly of section .text:
    1855f1c61:	e8 26 c5 0e 02       	call   0x1876de18c
    1855f1c66:	cc                   	int3
    1855f1c67:	66 0f 1f 84 00 00 00 	nop    WORD PTR [rax+rax*1+0x0]
-   1855f1c6e:	00 00
+   1855f1c6e:	00 00 
    1855f1c70:	48 89 54 24 10       	mov    QWORD PTR [rsp+0x10],rdx
    1855f1c75:	55                   	push   rbp
    1855f1c76:	56                   	push   rsi
@@ -108,7 +108,7 @@ Disassembly of section .text:
    1855f1cc8:	48 83 ec 38          	sub    rsp,0x38
    1855f1ccc:	48 8d 6c 24 30       	lea    rbp,[rsp+0x30]
    1855f1cd1:	48 c7 45 00 fe ff ff 	mov    QWORD PTR [rbp+0x0],0xfffffffffffffffe
-   1855f1cd8:	ff
+   1855f1cd8:	ff 
    1855f1cd9:	48 89 ce             	mov    rsi,rcx
    1855f1cdc:	b9 58 00 00 00       	mov    ecx,0x58
    1855f1ce1:	e8 f6 9f f5 01       	call   0x18754bcdc
@@ -143,7 +143,7 @@ Disassembly of section .text:
    1855f1d4d:	48 83 c0 18          	add    rax,0x18
    1855f1d51:	49 89 7f 28          	mov    QWORD PTR [r15+0x28],rdi
    1855f1d55:	49 c7 47 30 0f 00 00 	mov    QWORD PTR [r15+0x30],0xf
-   1855f1d5c:	00
+   1855f1d5c:	00 
    1855f1d5d:	0f 10 03             	movups xmm0,XMMWORD PTR [rbx]
    1855f1d60:	0f 11 00             	movups XMMWORD PTR [rax],xmm0
    1855f1d63:	eb 74                	jmp    0x1855f1dd9

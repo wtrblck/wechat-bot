@@ -7,8 +7,9 @@ import { BridgeClient, policyDiagnostics } from './bridge/client.js';
 import { Store } from './storage/database.js';
 import { hash } from './contracts.js';
 import { DatabaseSync } from 'node:sqlite';
-import { budgetStatus } from './budget/daily-budget.js';
+import { budgetStatus, resetDailyAllowance } from './budget/daily-budget.js';
 import { loadPricing, priceAt, assertPricingCurrent } from './budget/pricing.js';
+import { videoWorker } from './media/video.js';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const command = process.argv[2] ?? 'check';
@@ -33,13 +34,28 @@ try {
       assertPricingCurrent(pricing, Date.now(), config.budget.maxPricingAgeDays);
       priceAt(pricing, config.runtime.provider, config.runtime.model, Date.now());
     }
-    if (command === 'check') console.log(JSON.stringify({ ok: true, engine: 'dsh', dshVersion: '0.2.1-rc.2', configVersion: hash(config.version),
+    let videoHealth: unknown;
+    if (command === 'check' && config.media.enabled && config.video.enabled) {
+      const health = await videoWorker(config, { action: 'health' }, AbortSignal.timeout(15000));
+      const localModel = existsSync(resolve(config.root, config.video.asr.localModel, 'model.bin'));
+      if (!health.ffmpeg || config.video.asr.backend === 'local' && (!health.localAsr || !localModel))
+        throw Error('video_dependencies_missing_run_scripts_setup_video_ps1');
+      if (config.video.asr.backend === 'endpoint' && !config.video.asr.endpoint) throw Error('video_asr_endpoint_missing');
+      videoHealth = { ...health, asrBackend: config.video.asr.backend, localModel };
+    }
+    if (command === 'check') console.log(JSON.stringify({ ok: true, engine: 'dsh', dshVersion: '0.2.1-rc.2', configVersion: hash(config.version), video: videoHealth,
       contacts: config.access.direct.allow.length, groups: config.access.group.allow.length,
       dailyLimitCny: config.budget.enabled ? config.budget.dailyLimitCny : null }));
     else if (command === 'diagnose') {
       const health = await new BridgeClient(config).health();
       console.log(JSON.stringify({ state: health.state, sendReady: health.send_ready, receiveReady: health.receive_ready,
         issues: policyDiagnostics(config, health) }, null, 2));
+    } else if (command === 'budget-reset') {
+      const file = resolve(config.root, config.storage.file);
+      if (!existsSync(file)) throw Error('budget_database_missing');
+      const db = new DatabaseSync(file);
+      try { db.exec('PRAGMA busy_timeout=5000'); console.log(JSON.stringify(resetDailyAllowance(config, db))); }
+      finally { db.close(); }
     } else if (command === 'budget') {
       // Read-only access works while the service owns the normal consumer lease.
       const file = resolve(config.root, config.storage.file);

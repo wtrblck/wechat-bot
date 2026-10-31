@@ -245,3 +245,4 @@ class DownloadQueue:
                     entry['state'] = 'cancelled'
             self.condition.notify_all()
         self.worker.join()
+

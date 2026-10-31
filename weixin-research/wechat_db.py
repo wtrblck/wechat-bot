@@ -122,19 +122,20 @@ class DatabaseSource:
         temporary.write_text(json.dumps(self.watermarks, ensure_ascii=False), encoding='utf-8')
         temporary.replace(self.state_path)
 
-    def _query(self, conversation, since, limit, descending):
+    def _query(self, conversation, since, limit, descending, local_id=None):
         found = self.db._msg_conn(conversation)
         if found is None:
             return []
         conn, table = found
         try:
             order = 'DESC' if descending else 'ASC'
+            condition = 'm.sort_seq > ?' if local_id is None else 'm.local_id = ?'
             rows = conn.execute(
                 "SELECT m.local_id, m.local_type, m.real_sender_id, m.create_time, "
-                "m.message_content, m.sort_seq, m.server_id, m.download_status, n.user_name AS sender_name "
+                "m.message_content, m.sort_seq, m.server_id, m.download_status, m.status, n.user_name AS sender_name "
                 "FROM %s AS m LEFT JOIN Name2Id AS n ON n.rowid = m.real_sender_id "
-                "WHERE m.sort_seq > ? ORDER BY m.sort_seq %s LIMIT ?" % (table, order),
-                (since, limit),
+                "WHERE %s ORDER BY m.sort_seq %s LIMIT ?" % (table, condition, order),
+                (since if local_id is None else int(local_id), limit),
             ).fetchall()
         finally:
             conn.close()
@@ -157,6 +158,8 @@ class DatabaseSource:
                 content = body
         sender = sender or 'unknown'
         recipient = recipients_for(conversation, sender, self.self_wxid)
+        from emoji_media import emoji_identity
+        emoji_md5 = emoji_identity(content) if int(local_type or 0) & 0xffffffff == 47 else None
         media = media_metadata(local_type, content if isinstance(content, str) else '')
         if media:
             content = media.get('name') or '[%s]' % media['kind']
@@ -165,6 +168,8 @@ class DatabaseSource:
                     message_id='%s:%s' % (conversation, row['local_id']),
                     local_id=row['local_id'], message_type=type_name,
                     server_id=str(row['server_id'] or 0), download_status=row['download_status'],
+                    send_status=row['status'] if 'status' in row.keys() else None,
+                    emoji_md5=emoji_md5,
                     media=media,
                     local_type=int(local_type or 0), timestamp=int(row['create_time'] or 0),
                     sort_seq=int(row['sort_seq'] or 0), content=content if isinstance(content, str) else '',
@@ -173,6 +178,10 @@ class DatabaseSource:
 
     def latest(self, conversation, limit=5):
         return [self._event(conversation, row) for row in self._query(conversation, 0, limit, True)]
+
+    def message_by_local_id(self, conversation, local_id):
+        rows = self._query(conversation, 0, 1, False, local_id=local_id)
+        return self._event(conversation, rows[0]) if rows else None
 
     def messages_since(self, conversation, since, limit=50):
         """Read-only query used to correlate an outgoing send; never moves watermarks."""

@@ -6,6 +6,7 @@ import { conversationConfig, type Config } from '../config.js';
 import { hash, requestId, routeKey, type EventPage, type HostInput, type Message, type Session } from '../contracts.js';
 import { ignoreReason, normalize } from '../ingress/normalizer.js';
 import { chunkText } from '../egress/chunker.js';
+import { installTrace, type OutputOrigin, type TraceObservation } from './trace.js';
 
 export type Row = Record<string, any>;
 export class Store {
@@ -49,6 +50,15 @@ export class Store {
         tags TEXT NOT NULL,summary TEXT NOT NULL,path TEXT NOT NULL,created INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS segments_route ON memory_segments(route,end_position DESC);
       CREATE TABLE IF NOT EXISTS summary_checkpoints(route TEXT PRIMARY KEY,position INTEGER NOT NULL,completed INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS social_notes(id TEXT PRIMARY KEY,route TEXT NOT NULL,subject TEXT NOT NULL,kind TEXT NOT NULL,
+        slot TEXT NOT NULL,quote TEXT NOT NULL,source_id TEXT NOT NULL,occurred INTEGER NOT NULL,sequence INTEGER NOT NULL,expires INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS social_route ON social_notes(route,subject,occurred);
+      CREATE TABLE IF NOT EXISTS social_tones(route TEXT NOT NULL,subject TEXT NOT NULL,topic TEXT NOT NULL,state TEXT NOT NULL,
+        source_id TEXT NOT NULL,sequence INTEGER NOT NULL,occurred INTEGER NOT NULL,expires INTEGER NOT NULL,PRIMARY KEY(route,subject,topic));
+      CREATE TABLE IF NOT EXISTS social_care(run_id TEXT NOT NULL,route TEXT NOT NULL,source_id TEXT NOT NULL,reply_id TEXT,
+        created INTEGER NOT NULL,PRIMARY KEY(run_id,source_id));
+      CREATE TABLE IF NOT EXISTS social_followups(id TEXT PRIMARY KEY,route TEXT NOT NULL,subject TEXT NOT NULL,slot TEXT NOT NULL,
+        source_id TEXT NOT NULL,quote TEXT NOT NULL,due INTEGER NOT NULL,sequence INTEGER NOT NULL,state TEXT NOT NULL,attempted INTEGER);
       CREATE TABLE IF NOT EXISTS context_audit(input_id TEXT PRIMARY KEY,route TEXT NOT NULL,details TEXT NOT NULL,created INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY,route TEXT NOT NULL,path TEXT NOT NULL,hash TEXT NOT NULL,
         mime TEXT NOT NULL,bytes INTEGER NOT NULL,expires INTEGER NOT NULL,refs INTEGER NOT NULL DEFAULT 0);
@@ -56,6 +66,7 @@ export class Store {
         descriptor TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(route,message_id));
       PRAGMA user_version=1;`);
     if (!this.all('PRAGMA table_info(outbox)').some(r => r.name === 'kind')) this.db.exec("ALTER TABLE outbox ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'");
+    if (!this.all('PRAGMA table_info(social_notes)').some(r => r.name === 'status')) this.db.exec("ALTER TABLE social_notes ADD COLUMN status TEXT NOT NULL DEFAULT 'open'");
     const identity = JSON.stringify([config.account.key, config.account.selfId, config.account.bridgeEpoch]);
     const previous = this.one('SELECT value FROM metadata WHERE key=?', 'source');
     if (previous && previous.value !== identity) { this.db.close(); throw Error('account_or_epoch_changed_use_new_database'); }
@@ -65,6 +76,7 @@ export class Store {
       if (lock && lock.expires > this.clock()) throw Error('consumer_already_running');
       this.exec('INSERT OR REPLACE INTO consumer_lock VALUES(1,?,?)', this.owner, this.clock() + 30000);
     }); } catch (error) { this.db.close(); throw error; }
+    installTrace(this.db);
     // Additive migration: retain legacy units/runs, rebuild raw history once without executing any messages.
     if (!this.one("SELECT value FROM metadata WHERE key='history_v2'")) this.transaction(() => {
       for (const row of this.all('SELECT route,payload FROM inbox WHERE route IS NOT NULL ORDER BY sequence')) {
@@ -154,9 +166,10 @@ export class Store {
       route, m.messageId, JSON.stringify(m), m.timestampMs, requestId);
   }
   recordSent(row: Row, result: Record<string, any>) {
-    if (!['text', 'file'].includes(row.kind) || !['local_accepted', 'message_recorded', 'server_confirmed'].includes(result.state ?? row.state)) return;
+    if (!['text', 'file', 'image', 'video', 'emoji'].includes(row.kind) || !['local_accepted', 'message_recorded', 'server_confirmed'].includes(result.state ?? row.state)) return;
     const body = JSON.parse(row.body);
-    const text = row.kind === 'file' && typeof body.path === 'string' ? '[文件] ' + basename(body.path) : body.text;
+    const labels: Record<string, string> = { file: '文件', image: '图片', video: '视频', emoji: '表情包' };
+    const text = row.kind === 'text' ? body.text : '[' + labels[row.kind] + '] ' + (row.kind === 'emoji' ? body.emoji_id : basename(body.path));
     if (typeof text !== 'string' || !text) return;
     const id = typeof result.message_id === 'string' && result.message_id ? result.message_id : 'request:' + row.id;
     const old = this.one('SELECT * FROM chat_history WHERE request_id=?', row.id);
@@ -189,10 +202,10 @@ export class Store {
       return { messageId, kind: descriptor.kind, state: 'expired', note: '沙箱附件已过期，可请求重新准备。' };
     return descriptor as Record<string, any>;
   }
-  prepareReply(session: Session, eventId: string, text: string): void {
-    this.prepareMessages(session, eventId, [text]);
+  prepareReply(session: Session, eventId: string, text: string, origin?: OutputOrigin): void {
+    this.prepareMessages(session, eventId, [text], origin);
   }
-  prepareMessages(session: Session, eventId: string, texts: string[]): void {
+  prepareMessages(session: Session, eventId: string, texts: string[], origin?: OutputOrigin): void {
     if (!texts.length || texts.some(t => typeof t !== 'string' || !t.trim())) throw Error('invalid_reply_messages');
     const chunks = texts.flatMap(text => chunkText(text, this.config.egress.chunkBytes, this.config.egress.maxInlineParts));
     if (chunks.length > this.config.egress.maxInlineParts) throw Error('reply_requires_artifact');
@@ -203,20 +216,45 @@ export class Store {
       if (existing && existing.hash !== hash(body)) throw Error('request_id_conflict');
       this.exec('INSERT OR IGNORE INTO outbox(id,reply,route,part,body,hash,state,created) VALUES(?,?,?,?,?,?,?,?)',
         id, eventId, session.key, i, body, hash(body), 'prepared', this.clock());
+      this.bindOutput(id, origin);
     }));
   }
   startRun(input: HostInput, ids: string[]) {
     this.transaction(() => {
       this.exec('INSERT INTO runs VALUES(?,?,?,?,?,?,?,NULL)', input.inputId, input.session.key, JSON.stringify(input), JSON.stringify(ids), 'dispatching', input.purpose, this.clock());
-      for (const id of ids) this.exec("UPDATE inbox SET state='dispatching' WHERE id=?", id);
+      for (const id of ids) {
+        this.exec('INSERT OR IGNORE INTO trace_sources VALUES(?,?)', input.inputId, id);
+        if (input.purpose === 'reply') this.exec("UPDATE inbox SET state='dispatching' WHERE id=?", id);
+      }
     });
   }
-  prepareFile(session: Session, eventId: string, path: string) {
+  traceRun(runId: string, event: TraceObservation, key?: string) {
+    this.exec('INSERT OR IGNORE INTO trace_events(at,phase,state,run_id,details,event_key) VALUES(?,?,?,?,?,?)',
+      this.clock(), event.phase, event.state, runId, JSON.stringify(event.details), key ?? null);
+  }
+  traceInput(ids: string[], state: string, reason?: string) {
+    for (const id of ids) {
+      const previous = this.one("SELECT state,details FROM trace_events WHERE inbox_id=? AND phase='participation' ORDER BY id DESC LIMIT 1", id);
+      const details = JSON.stringify({ reason: reason ?? null });
+      if (previous?.state === state && previous.details === details) continue;
+      this.exec("INSERT INTO trace_events(at,phase,state,inbox_id,details) VALUES(?,'participation',?,?,?)", this.clock(), state, id, details);
+    }
+  }
+  private bindOutput(id: string, origin?: OutputOrigin) {
+    if (origin?.runId || origin?.inboxId) this.exec('INSERT OR IGNORE INTO trace_outputs VALUES(?,?,?)', id, origin.runId ?? null, origin.inboxId ?? null);
+  }
+  prepareFile(session: Session, eventId: string, path: string, origin?: OutputOrigin) {
+    return this.prepareMedia(session, eventId, 'file', path, origin);
+  }
+  prepareMedia(session: Session, eventId: string, kind: 'file' | 'image' | 'video' | 'emoji', value: string, origin?: OutputOrigin) {
     const id = requestId(this.config.account.key, session, eventId, 0);
-    const body = JSON.stringify({ request_id: id, recipient: session.conversation, path, wait: false });
+    const body = JSON.stringify({ request_id: id, recipient: session.conversation, ...(kind === 'emoji' ? { emoji_id: value } : { path: value }), wait: false });
     const existing = this.one('SELECT hash FROM outbox WHERE id=?', id);
     if (existing && existing.hash !== hash(body)) throw Error('request_id_conflict');
-    this.exec("INSERT OR IGNORE INTO outbox(id,reply,route,part,body,hash,state,created,kind) VALUES(?,?,?,0,?,?,'prepared',?,'file')", id, eventId, session.key, body, hash(body), this.clock());
+    this.transaction(() => {
+      this.exec("INSERT OR IGNORE INTO outbox(id,reply,route,part,body,hash,state,created,kind) VALUES(?,?,?,0,?,?,'prepared',?,?)", id, eventId, session.key, body, hash(body), this.clock(), kind);
+      this.bindOutput(id, origin);
+    });
   }
   completeRun(id: string, state: string, result: unknown) {
     this.transaction(() => {
@@ -230,11 +268,19 @@ export class Store {
     this.transaction(() => {
       // Active/uncertain inputs and output identities survive the retention sweep.
       this.exec("DELETE FROM inbox WHERE created<? AND state IN ('ignored','completed','cancelled','observed','failed')", cutoff);
+      this.exec("DELETE FROM trace_events WHERE at<? AND (inbox_id IS NULL OR inbox_id NOT IN (SELECT id FROM inbox)) AND (run_id IS NULL OR run_id IN (SELECT id FROM runs WHERE state IN ('completed','failed','cancelled'))) AND (outbox_id IS NULL OR outbox_id IN (SELECT id FROM outbox WHERE state IN ('server_confirmed','failed','cancelled')))", cutoff);
+      this.exec('DELETE FROM trace_inbox WHERE id NOT IN (SELECT id FROM inbox)');
+      this.exec('DELETE FROM trace_sources WHERE inbox_id NOT IN (SELECT id FROM inbox)');
+      this.exec("DELETE FROM trace_outputs WHERE outbox_id IN (SELECT id FROM outbox WHERE created<? AND state IN ('server_confirmed','failed','cancelled'))", cutoff);
       this.exec("DELETE FROM memory_units WHERE created<?", cutoff);
       // Never discard raw messages that still await a successful summary.
       this.exec(`DELETE FROM chat_history WHERE occurred<? AND position<=coalesce(
         (SELECT position FROM summary_checkpoints WHERE route=chat_history.route),0)`, cutoff);
       this.exec('DELETE FROM context_audit WHERE created<?', cutoff);
+      this.exec('DELETE FROM social_notes WHERE expires<=?', this.clock());
+      this.exec('DELETE FROM social_tones WHERE expires<=?', this.clock());
+      this.exec('DELETE FROM social_care WHERE created<?', this.clock() - 8 * 86400000);
+      this.exec('DELETE FROM social_followups WHERE due<?', this.clock() - 8 * 86400000);
       this.exec("UPDATE runs SET input='{}',source_ids='[]',result=NULL WHERE created<? AND state IN ('completed','failed','cancelled')", cutoff);
       this.exec("UPDATE outbox SET body='{}',result=NULL WHERE created<? AND state IN ('server_confirmed','failed','cancelled')", cutoff);
       this.exec("DELETE FROM participation_decisions WHERE created<? AND state<>'pending'", cutoff);

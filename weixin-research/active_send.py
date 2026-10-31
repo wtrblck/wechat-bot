@@ -13,8 +13,9 @@ import sys
 import uuid
 from pathlib import Path
 from pe_image import PEImage
-from policy import SendPolicy
+from policy import SendPolicy, PolicyError
 from profile import (ROOT, DLL, SHA256, SEND_FUNCTIONS, EMOJI_VTABLE, VERSION,
+                     LOCAL_EMOJI_CONTROL, LOCAL_EMOJI_RESOURCE,
                      make_config)
 from probe import Journal, render_source, run_probe
 
@@ -97,7 +98,22 @@ def config_for(kind, text=None, path=None, recipient='filehelper', seconds=15, p
             request['duration_ms'] = duration
         config['staging_directory'] = prepared['directory']
     functions = dict(FUNCTIONS)
-    if kind == 'emoji':
+    local_emoji = kind == 'image' and request['media']['format'] == 'gif'
+    if local_emoji:
+        if not all(name in functions for name in ('emoji_import', 'emoji_local_copy')) or not LOCAL_EMOJI_CONTROL or not LOCAL_EMOJI_RESOURCE:
+            raise PolicyError('local_emoji_unavailable', 'this pinned version has no verified local GIF sender')
+        data = staged.read_bytes()
+        if hashlib.sha256(data).hexdigest() != request['media']['sha256']:
+            raise PolicyError('media_changed', 'staged animation changed before native preparation')
+        # Real content digest, registered with the native cache importer before
+        # sending. No synthesized CDN URL, AES key or favorites database entry.
+        request.update(kind='emoji', local_emoji=True, emoji_type=4,
+                       local_emoji_size=len(data),
+                       local_emoji_control_vtable=LOCAL_EMOJI_CONTROL,
+                       local_emoji_resource_vtable=LOCAL_EMOJI_RESOURCE,
+                       emoji_fields={'md5': list(hashlib.md5(data).hexdigest().encode('ascii'))})
+        request['thread_source'] = '#define ENABLE_LOCAL_EMOJI 1\n' + request['thread_source']
+    elif kind == 'emoji':
         if emoji_catalog is None:
             raise ValueError('emoji_catalog_required')
         from emoji_media import HEX32, validate_url
@@ -109,11 +125,14 @@ def config_for(kind, text=None, path=None, recipient='filehelper', seconds=15, p
         if any(not isinstance(value,str) or '\0' in value or len(value.encode('utf-8')) > 4096 for value in fields.values()):
             raise ValueError('invalid_favorite_emoji_fields')
         request.update(emoji_id=selected['md5'], emoji_type=selected['type'],
-                       emoji_fields={key:list(value.encode('utf-8')) for key,value in fields.items()},
-                       emoji_control_vtable=EMOJI_VTABLE,
+                       emoji_fields={key:list(value.encode('utf-8')) for key,value in fields.items()})
+    if request['kind'] == 'emoji':
+        request.update(emoji_control_vtable=EMOJI_VTABLE,
                        data_fingerprints=[dict(rva=EMOJI_VTABLE, pointer_rvas=[address-image.image_base
                            for address in struct.unpack('<QQ',image.read_rva(EMOJI_VTABLE,16))])])
         request['thread_source'] = '#define ENABLE_EMOJI 1\n' + request['thread_source']
+        if local_emoji:
+            request['data_fingerprints'].extend(local_emoji_fingerprints(image))
     for name, rva in functions.items():
         owner = image.owner(rva)
         if owner is not None and owner['begin'] != rva:
@@ -128,6 +147,12 @@ def config_for(kind, text=None, path=None, recipient='filehelper', seconds=15, p
 WORKER_FUNCTIONS = dict(SEND_FUNCTIONS)
 
 
+def local_emoji_fingerprints(image):
+    return [dict(rva=table, pointer_rvas=[address-image.image_base for address in
+            struct.unpack('<'+'Q'*count, image.read_rva(table, count*8))])
+            for table, count in ((LOCAL_EMOJI_CONTROL, 3), (LOCAL_EMOJI_RESOURCE, 17))]
+
+
 def worker_config(policy=None, seconds=60):
     """Build the resident send-worker template (P6).
 
@@ -139,16 +164,22 @@ def worker_config(policy=None, seconds=60):
     config = make_config(seconds=seconds, resident=True, quiet=True)
     image = pinned_image()
     functions = dict(WORKER_FUNCTIONS)
+    local_available = all(name in functions for name in ('emoji_import', 'emoji_local_copy')) and bool(LOCAL_EMOJI_CONTROL and LOCAL_EMOJI_RESOURCE)
     request = dict(kind='template', backend='send_worker', recipient='filehelper',
                    recipient_bytes=[ord(c) for c in 'filehelper'],
                    text=None, text_bytes=[], limits=policy.describe(),
                    helper_source=(ROOT / 'active_send.c').read_text(encoding='utf-8'),
-                   thread_source='#define ENABLE_EMOJI 1\n' +
+                   thread_source=('#define ENABLE_LOCAL_EMOJI 1\n' if local_available else '') + '#define ENABLE_EMOJI 1\n' +
                                  (ROOT / 'app_thread_send.c').read_text(encoding='utf-8'),
-                   on_app_thread=True, functions=[], emoji_control_vtable=EMOJI_VTABLE,
+                   on_app_thread=True, functions=[], local_emoji=local_available,
+                   local_emoji_control_vtable=LOCAL_EMOJI_CONTROL,
+                   local_emoji_resource_vtable=LOCAL_EMOJI_RESOURCE,
+                   emoji_control_vtable=EMOJI_VTABLE,
                    data_fingerprints=[dict(rva=EMOJI_VTABLE, pointer_rvas=[
                        address - image.image_base for address in
                        struct.unpack('<QQ', image.read_rva(EMOJI_VTABLE, 16))])])
+    if local_available:
+        request['data_fingerprints'].extend(local_emoji_fingerprints(image))
     for name, rva in functions.items():
         owner = image.owner(rva)
         if owner is not None and owner['begin'] != rva:
@@ -207,3 +238,4 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

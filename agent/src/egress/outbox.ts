@@ -17,10 +17,11 @@ export class Outbox {
   constructor(readonly store: Store, readonly bridge: Bridge,
     readonly wait: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)),
     readonly progress: () => void = () => {}) {}
-  async tick() {
+  async tick(deferredRoutes: ReadonlySet<string> = new Set()) {
     if (this.stopping) return;
     const routes = this.store.all("SELECT DISTINCT route FROM outbox WHERE state IN ('prepared','queued','sending','local_accepted','message_recorded')");
     await Promise.allSettled(routes.map(async r => {
+      if (deferredRoutes.has(r.route)) return;
       if (this.busy.has(r.route)) return;
       this.busy.add(r.route);
       try { await this.route(r.route); } finally { this.busy.delete(r.route); }
@@ -69,6 +70,7 @@ export class Outbox {
       } catch (error) {
         if (error instanceof BridgeError && (error.status === 409 || (error.status >= 400 && error.status < 500 && error.status !== 429))) {
           this.store.exec("UPDATE outbox SET state='failed',result=? WHERE id=?", JSON.stringify({ code: error.code }), row.id);
+          this.releaseFile(row);
         }
         // A lost response is reconciled by ID on the next tick, never a fresh ID.
         return;
@@ -90,10 +92,16 @@ export class Outbox {
     if (['server_confirmed', 'failed', 'cancelled'].includes(result.state)) this.releaseFile(row);
   }
   private releaseFile(row: Row) {
-    if (row.kind !== 'file') return;
+    if (!['file', 'image', 'video'].includes(row.kind)) return;
     const path = JSON.parse(row.body).path;
-    const pending = this.store.one("SELECT count(*) n FROM outbox WHERE kind='file' AND json_extract(body,'$.path')=? AND state NOT IN ('server_confirmed','failed','cancelled')", path)!.n;
+    const pending = this.store.one("SELECT count(*) n FROM outbox WHERE kind IN ('file','image','video') AND json_extract(body,'$.path')=? AND state NOT IN ('server_confirmed','failed','cancelled')", path)!.n;
     if (!pending) this.store.exec('UPDATE artifacts SET refs=0 WHERE path=?', path);
+  }
+  cancelPreparedReply(reply: string, reason: string) {
+    for (const row of this.store.all("SELECT * FROM outbox WHERE reply=? AND state='prepared' AND submitted=0", reply)) {
+      this.store.exec("UPDATE outbox SET state='cancelled',result=? WHERE id=?", JSON.stringify({ reason }), row.id);
+      this.releaseFile(row);
+    }
   }
   async cancel(route: string) {
     const rows = this.store.all("SELECT * FROM outbox WHERE route=? AND state IN ('prepared','queued','sending')", route);

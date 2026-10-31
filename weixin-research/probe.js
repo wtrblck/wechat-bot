@@ -61,8 +61,8 @@ function drainCapture() {
     const recipientLength = slot.add(28).readU32();
     if (contentLength > 0 && contentLength <= CAPTURE_CONTENT_MAX &&
         senderLength <= CAPTURE_ID_MAX && recipientLength <= CAPTURE_ID_MAX) {
-      send({event: 'test_message',
-            schema: config.capture_kind === 'send' ? 'wechat-send-ring-1' : 'wechat-sync-ring-1',
+      send({event: config.capture_kind === 'emoji_file_read' ? 'native_emoji_upload_input' : 'test_message',
+            schema: config.capture_kind === 'emoji_file_read' ? 'wechat-emoji-upload-input-1' : config.capture_kind === 'send' ? 'wechat-send-ring-1' : 'wechat-sync-ring-1',
             ring_index: next, message_type: messageType, message_id: messageId.toString(),
             timestamp,
             content: slot.add(32).readUtf8String(contentLength),
@@ -128,7 +128,7 @@ function finish(reason) {
 
 rpc.exports = {
   inspect() {
-    return {pid: Process.id, module_path: targetModule.path,
+    return {pid: Process.id, module_base: targetModule.base.toString(), module_path: targetModule.path,
             image_size: targetModule.size, arch: Process.arch,
             process_name: executableModule.name, frida_version: Frida.version,
             runtime: Script.runtime};
@@ -181,7 +181,7 @@ rpc.exports = {
       for (const site of config.sites) {
         counts[site.name] = 0;
         listeners.push(Interceptor.attach(targetModule.base.add(site.rva), {
-          onEnter: captureModule !== null ? (config.capture_kind === 'send' ? captureModule.capture_send_enter : captureModule.capture_enter) :
+          onEnter: captureModule !== null ? (config.capture_kind === 'emoji_file_read' ? captureModule.capture_emoji_file_read : config.capture_kind === 'send' ? captureModule.capture_send_enter : captureModule.capture_enter) :
             (nativeModule !== null ? nativeModule.on_enter : function () { counts[site.name]++; })
         }));
       }

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { DatabaseSync } from 'node:sqlite';
 import type { GenerateOptions, TokenUsage } from '@deepseek-ai/dsh-llm';
 import type { HostInput } from '../contracts.js';
 import type { Store, Row } from '../storage/database.js';
@@ -10,20 +11,47 @@ export interface BudgetStatus {
   enabled: boolean; day: string; timeZone: 'Asia/Shanghai'; dailyLimitCny: number;
   spentCny: number; heldCny: number; remainingCny: number; requestCount: number; uncertainRequests: number;
   stopped: boolean; reason: string | null; resumesAt: string; pricingVersion: string | null;
+  configuredDailyLimitCny: number; resetCount: number;
 }
 export function budgetStatus(config: Config, one: (sql: string, ...args: any[]) => Row | undefined, now: number): BudgetStatus {
-  const day = beijingDay(now); const limit = Math.round(config.budget.dailyLimitCny * NANOS_PER_CNY);
+  const day = beijingDay(now);
+  const resetRow = one('SELECT value FROM metadata WHERE key=?', 'budget_allowance:' + day);
+  const reset = resetRow ? JSON.parse(resetRow.value) : undefined;
+  if (reset && (!Number.isSafeInteger(reset.limitNanos) || reset.limitNanos < 0 || !Number.isSafeInteger(reset.count) || reset.count < 1))
+    throw new BudgetError('budget_accounting_unavailable');
+  const limit = Math.max(Math.round(config.budget.dailyLimitCny * NANOS_PER_CNY), reset?.limitNanos ?? 0);
   const totals = one(`SELECT coalesce(sum(cost_nanos),0) spent,
     coalesce(sum(CASE WHEN state<>'settled' THEN max(reserved_nanos-cost_nanos,0) ELSE 0 END),0) held,
     count(*) requests,coalesce(sum(CASE WHEN state='uncertain' THEN 1 ELSE 0 END),0) uncertain FROM budget_requests WHERE day=?`, day)!;
   const latch = one('SELECT * FROM budget_stops WHERE day=?', day);
   const reason = totals.spent >= limit ? 'daily_budget_exhausted' : latch && latch.limit_nanos >= limit ? latch.reason : null;
-  return { enabled: config.budget.enabled, day, timeZone: 'Asia/Shanghai', dailyLimitCny: config.budget.dailyLimitCny,
+  return { enabled: config.budget.enabled, day, timeZone: 'Asia/Shanghai', dailyLimitCny: limit / NANOS_PER_CNY,
+    configuredDailyLimitCny: config.budget.dailyLimitCny, resetCount: reset?.count ?? 0,
     spentCny: totals.spent / NANOS_PER_CNY, heldCny: totals.held / NANOS_PER_CNY,
     remainingCny: Math.max(0, limit - totals.spent - totals.held) / NANOS_PER_CNY,
     requestCount: totals.requests, uncertainRequests: totals.uncertain, stopped: config.budget.enabled && !!reason,
     reason: config.budget.enabled ? reason : null, resumesAt: beijingDay(nextBeijingMidnight(now)) + 'T00:00:00+08:00',
     pricingVersion: one('SELECT pricing_version FROM budget_requests WHERE day=? ORDER BY started DESC LIMIT 1', day)?.pricing_version ?? null };
+}
+
+/** Explicit local operator action; never clears billing or unsettled reservations. */
+export function resetDailyAllowance(config: Config, db: DatabaseSync, now = Date.now()) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const one = (sql: string, ...args: any[]) => db.prepare(sql).get(...args);
+    const before = budgetStatus(config, one, now);
+    if (!before.enabled || !before.stopped || !before.reason?.startsWith('daily_budget')) throw Error('budget_reset_not_needed');
+    const limitNanos = Math.round((before.spentCny + before.heldCny + config.budget.dailyLimitCny) * NANOS_PER_CNY);
+    if (!Number.isSafeInteger(limitNanos)) throw Error('budget_reset_limit_invalid');
+    const id = randomUUID();
+    db.prepare('INSERT INTO metadata(key,value) VALUES(?,?)').run('budget_reset_audit:' + id,
+      JSON.stringify({ id, day: before.day, at: now, before, limitNanos, allowanceCny: config.budget.dailyLimitCny }));
+    db.prepare('INSERT OR REPLACE INTO metadata(key,value) VALUES(?,?)').run('budget_allowance:' + before.day,
+      JSON.stringify({ limitNanos, count: before.resetCount + 1, at: now, auditId: id }));
+    db.prepare('DELETE FROM budget_stops WHERE day=?').run(before.day);
+    const after = budgetStatus(config, one, now);
+    db.exec('COMMIT'); return after;
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 export class DailyBudget {
   readonly snapshot: PricingSnapshot | undefined;
@@ -41,7 +69,7 @@ export class DailyBudget {
   }
   status() { return budgetStatus(this.store.config, this.store.one.bind(this.store), this.store.clock()); }
   stop(reason: string) {
-    const limit = Math.round(this.store.config.budget.dailyLimitCny * NANOS_PER_CNY);
+    const limit = Math.round(this.status().dailyLimitCny * NANOS_PER_CNY);
     this.store.exec('INSERT OR REPLACE INTO budget_stops VALUES(?,?,?,?)', beijingDay(this.store.clock()), reason, limit, this.store.clock());
     this.onStop?.(this.status());
   }

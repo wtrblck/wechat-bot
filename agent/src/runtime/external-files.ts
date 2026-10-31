@@ -52,7 +52,7 @@ export class ExternalFiles {
     const expires = store.clock() + config.externalAccess.timeoutSeconds * 1000;
     store.exec('UPDATE interactions SET expires=? WHERE id=?', expires, id);
     const text = `沙箱外文件操作申请 ${id}\n来源：${this.input.session.scope} ${this.input.session.conversation}\n操作：${JSON.stringify(operation)}\n用途（模型说明）：${JSON.stringify(reason)}\n仅批准本次指定操作，写入会替换目标文件；不允许执行命令。请在${config.externalAccess.timeoutSeconds}秒内私聊回复 /bot allow ${id} 或 /bot deny ${id}。`;
-    store.prepareReply(contact, 'command:external-approval:' + id, text);
+    store.prepareReply(contact, 'command:external-approval:' + id, text, { runId: this.input.inputId });
     try {
       while (true) {
         this.unchanged();

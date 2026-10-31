@@ -67,7 +67,7 @@ class SendAPITest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(self.calls[0]['recipient'], 'wxid_test_contact')
         self.assertEqual(result['recipient'], 'wxid_test_contact')
-        status, error = self.post(dict(self.payload('other'), recipient='wxid_sample_01'))
+        status, error = self.post(dict(self.payload('other'), recipient='wxid_not_configured'))
         self.assertEqual((status, error['error']), (403, 'recipient_not_allowed'))
         self.assertEqual(self.post(dict(self.payload('fields'), extra=True))[0], 400)
         self.assertEqual(self.post(dict(recipient='filehelper', text='wxbot-http'))[0], 400)

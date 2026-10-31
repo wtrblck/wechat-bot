@@ -1,0 +1,169 @@
+{
+  "date": "2026-10-29",
+  "source": "Explicit user confirmations in this conversation for filehelper and the selected test contact/group",
+  "confirmations": [
+    {
+      "journal": "active/20261028T130602Z-e600c030",
+      "received": true,
+      "item": "wxbot-active",
+      "reply": "文本和图片都看到了"
+    },
+    {
+      "journal": "active/20261028T131248Z-7ee889ed",
+      "received": true,
+      "item": "wxbot-image.png",
+      "reply": "文本和图片都看到了"
+    },
+    {
+      "journal": "active/20261028T131312Z-588bd2b6",
+      "received": true,
+      "item": "wxbot-file.txt",
+      "reply": "三个附件收到，视频消息未收到"
+    },
+    {
+      "journal": "send-api/20261028T132117Z-47db02fe",
+      "received": true,
+      "item": "wxbot-audio.wav as file",
+      "reply": "三个附件收到，视频消息未收到"
+    },
+    {
+      "journal": "send-api/20261028T132133Z-04c2399b",
+      "received": true,
+      "item": "wxbot-video.avi as file",
+      "reply": "三个附件收到，视频消息未收到"
+    },
+    {
+      "journal": "active/20261028T131913Z-d7a6be9b",
+      "received": false,
+      "item": "wxbot-video.avi as native video",
+      "reply": "三个附件收到，视频消息未收到"
+    },
+    {
+      "journal": "send-api/20261028T132514Z-c65b6cb5",
+      "received": true,
+      "playable": true,
+      "item": "wxbot-video.mp4 as native video",
+      "reply": "MP4 视频消息已收到且可播放"
+    },
+    {
+      "journal": "active/20261028T135256Z-2f4fb7e7",
+      "received": true,
+      "playable": true,
+      "item": "wxbot-voice.wav encoded as native voice, 1000 ms",
+      "reply": "收到语音，能正常播放"
+    },
+    {
+      "journal": "send-api/20261028T160406Z-faed5bdb",
+      "received": true,
+      "text_bytes": 87,
+      "item": "UTF-8 Chinese text via HTTP (87 bytes, exceeds old 15-byte inline limit)",
+      "reply": "两条都收到了"
+    },
+    {
+      "journal": "send-api/20261028T160426Z-2c00b238",
+      "received": true,
+      "text_bytes": 467,
+      "lines": 4,
+      "item": "UTF-8 multi-line long text via HTTP (467 bytes, blank line, ASCII line)",
+      "reply": "两条都收到了"
+    },
+    {
+      "journal": "send-api/20261028T163924Z-8ff41d27",
+      "received": true,
+      "text_bytes": 85,
+      "recipient": "resolved ordinary contact",
+      "item": "first ordinary-contact text send (ID resolved from a phone marker)",
+      "reply": "在「能源城大天使」聊天里看到了"
+    },
+    {
+      "journal": "send-api/20261028T165138Z-ff25aba3",
+      "received": true,
+      "text_bytes": 70,
+      "recipient": "resolved test group",
+      "item": "first group text send (chatroom ID resolved from a phone marker)",
+      "reply": "在「EIPSY、能源城大天使」群里看到了"
+    },
+    {
+      "journal": "send-api/20261028T165511Z-412b5cf9",
+      "received": true,
+      "recipient": "resolved ordinary contact",
+      "item": "contact: wxbot-image.png (native image message)",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T165519Z-2382923f",
+      "received": true,
+      "recipient": "resolved ordinary contact",
+      "item": "contact: wxbot-file.txt (file attachment)",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T165527Z-94de7b83",
+      "received": true,
+      "playable": true,
+      "recipient": "resolved ordinary contact",
+      "item": "contact: wxbot-video.mp4 (native video message)",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T165853Z-f8f49f34",
+      "received": true,
+      "playable": true,
+      "duration_ms": 1000,
+      "recipient": "resolved ordinary contact",
+      "item": "contact: native voice from wxbot-voice.wav",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T165901Z-e595d229",
+      "received": true,
+      "recipient": "resolved test group",
+      "item": "group: wxbot-image.png (native image message)",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T165909Z-7c9dc5da",
+      "received": true,
+      "recipient": "resolved test group",
+      "item": "group: wxbot-file.txt (file attachment)",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T165917Z-3108136a",
+      "received": true,
+      "playable": true,
+      "recipient": "resolved test group",
+      "item": "group: wxbot-video.mp4 (native video message)",
+      "reply": "四类都收到了"
+    },
+    {
+      "journal": "send-api/20261028T170004Z-b0ffb846",
+      "received": true,
+      "playable": true,
+      "duration_ms": 1000,
+      "recipient": "resolved test group",
+      "item": "group: native voice from wxbot-voice.wav",
+      "reply": "四类都收到了"
+    },
+    {
+      "date": "2026-10-29",
+      "journal": "send-api/20261029T062002Z-6d51d596",
+      "received": true,
+      "native_type": 47,
+      "recipient": "resolved test group",
+      "item": "current account favorite emoji (native type 47)",
+      "rendered_normally": true,
+      "reply": "两边都收到，显示正常"
+    },
+    {
+      "date": "2026-10-29",
+      "journal": "send-api/20261029T062007Z-dd8a048d",
+      "received": true,
+      "native_type": 47,
+      "recipient": "resolved test contact",
+      "item": "current account favorite emoji (native type 47)",
+      "rendered_normally": true,
+      "reply": "两边都收到，显示正常"
+    }
+  ]
+}

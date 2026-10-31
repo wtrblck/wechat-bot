@@ -1,0 +1,276 @@
+{
+  "date": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "version": "4.1.15.56",
+  "p4_complete": true,
+  "completion_scope": "Default incoming content: ordinary images, files, videos, native voices for the selected contact and group.",
+  "tests": {
+    "unit_http_boundary": 74,
+    "active_fixture": 13,
+    "probe_fixture": 17,
+    "async_download_fixture": 4
+  },
+  "transport": "SQLCipher polling + optional pinned native async image/video download + authenticated localhost HTTP",
+  "incoming": [
+    {
+      "target": "contact",
+      "kind": "image",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "content",
+        "thumbnail"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": null,
+      "xml_md5_applicable": false,
+      "decoded_duration_ms": null,
+      "declared_duration_ms": null,
+      "dimensions": [
+        500,
+        606
+      ],
+      "image_decoded": true,
+      "full_video_decode_verified": null,
+      "transcoded_from": "image/wxgf",
+      "source_size": 19092,
+      "content_size": 301984,
+      "download": {
+        "state": "native_completed",
+        "attempts": 1,
+        "native_status": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "target": "contact",
+      "kind": "file",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "content"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": true,
+      "xml_md5_applicable": null,
+      "decoded_duration_ms": null,
+      "declared_duration_ms": null,
+      "dimensions": null,
+      "image_decoded": null,
+      "full_video_decode_verified": null,
+      "transcoded_from": null,
+      "source_size": null,
+      "content_size": 6105424,
+      "download": null
+    },
+    {
+      "target": "contact",
+      "kind": "video",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "content",
+        "thumbnail"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": true,
+      "xml_md5_applicable": null,
+      "decoded_duration_ms": 15133,
+      "declared_duration_ms": 15000,
+      "dimensions": [
+        640,
+        360
+      ],
+      "image_decoded": null,
+      "full_video_decode_verified": true,
+      "transcoded_from": null,
+      "source_size": null,
+      "content_size": 1391209,
+      "download": {
+        "state": "native_completed",
+        "attempts": 1,
+        "native_status": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "target": "contact",
+      "kind": "voice",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "silk",
+        "content"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": null,
+      "xml_md5_applicable": null,
+      "decoded_duration_ms": 3380,
+      "declared_duration_ms": 3647,
+      "dimensions": null,
+      "image_decoded": null,
+      "full_video_decode_verified": null,
+      "transcoded_from": null,
+      "source_size": null,
+      "content_size": 108204,
+      "download": null
+    },
+    {
+      "target": "group",
+      "kind": "file",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "content"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": true,
+      "xml_md5_applicable": null,
+      "decoded_duration_ms": null,
+      "declared_duration_ms": null,
+      "dimensions": null,
+      "image_decoded": null,
+      "full_video_decode_verified": null,
+      "transcoded_from": null,
+      "source_size": null,
+      "content_size": 6105424,
+      "download": null
+    },
+    {
+      "target": "group",
+      "kind": "video",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "content",
+        "thumbnail"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": true,
+      "xml_md5_applicable": null,
+      "decoded_duration_ms": 15133,
+      "declared_duration_ms": 15000,
+      "dimensions": [
+        640,
+        360
+      ],
+      "image_decoded": null,
+      "full_video_decode_verified": true,
+      "transcoded_from": null,
+      "source_size": null,
+      "content_size": 1391209,
+      "download": {
+        "state": "native_completed",
+        "attempts": 1,
+        "native_status": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "target": "group",
+      "kind": "image",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "content",
+        "thumbnail"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": null,
+      "xml_md5_applicable": false,
+      "decoded_duration_ms": null,
+      "declared_duration_ms": null,
+      "dimensions": [
+        500,
+        606
+      ],
+      "image_decoded": true,
+      "full_video_decode_verified": null,
+      "transcoded_from": "image/wxgf",
+      "source_size": 19092,
+      "content_size": 301984,
+      "download": {
+        "state": "native_completed",
+        "attempts": 1,
+        "native_status": [
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "target": "group",
+      "kind": "voice",
+      "direction": "incoming",
+      "state": "ready",
+      "reason": null,
+      "variants": [
+        "silk",
+        "content"
+      ],
+      "http_sha256_verified": true,
+      "file_md5_verified": null,
+      "xml_md5_applicable": null,
+      "decoded_duration_ms": 2300,
+      "declared_duration_ms": 2525,
+      "dimensions": null,
+      "image_decoded": null,
+      "full_video_decode_verified": null,
+      "transcoded_from": null,
+      "source_size": null,
+      "content_size": 73644,
+      "download": null
+    }
+  ],
+  "local_historical_content_checks": {
+    "messages": 8,
+    "kinds": [
+      "image",
+      "file",
+      "video",
+      "voice"
+    ],
+    "note": "Outgoing historical records only; not incoming download acceptance."
+  },
+  "background_download": {
+    "enabled_by": "db_receive.py --media --download --pid PID",
+    "incoming_kinds": [
+      "image",
+      "video"
+    ],
+    "native_entry": "0x1813980",
+    "image_kind": 2,
+    "video_kind": 32,
+    "serial": true,
+    "pending_capacity": 32,
+    "status_capacity": 128,
+    "attempts_max": 2,
+    "retry_seconds": 30,
+    "native_timeout_ms": 10000,
+    "native_success_requires_content_validation": true,
+    "first_network_trials": "runs/p4/native-async/",
+    "production_queue_replay": "runs/p4/service-download/",
+    "replay_note": "Production queue validation reuses the eight actual incoming messages; the four download requests hit existing cache."
+  },
+  "limitations": [
+    "Independent HD/original download is not verified; existing local originals can be read.",
+    "Missing file/voice content waits for WeChat to store it; no native file/voice download is claimed.",
+    "Long-term scheduling, reconnect and stalled native callback recovery remain P6."
+  ],
+  "pending_work": [],
+  "private_evidence": "runs/p4/download-complete/evidence.json",
+  "initial_incoming_evidence": "runs/p4/received/evidence.json"
+}

@@ -171,7 +171,8 @@ queued → cancelled
 - 只接受 `WECHAT_BOT_MEDIA_ROOTS` 内的普通文件；符号链接、目录、空文件、控制字符路径、超限文件都拒绝。
 - 生成夹具（`fixtures/wxbot-*`）仍按 `manifest.json` 校验哈希，防止证据被替换；业务目录不需要 manifest。
 - 读取后立即复制到 `runs/media-staging/<uuid>/`，按内容哈希发送，避免校验与发送之间被并发改写。staging 由维护线程按 1 小时 TTL 清理（媒体上传可能异步读取文件，不能立即删除）。
-- 图片：PNG 原样发送；JPEG/GIF/WebP 用 Pillow 取首帧转 PNG，保持 5000 万像素上限。
+- 图片：`/send/image`契约保持不变。PNG/GIF保留原始字节；静态JPEG/WebP转PNG，动态WebP/APNG转多帧GIF。桥接准备后将GIF路由为emoji，调用固定DLL的本地缓存导入入口RVA `0x6978540`，再复制为原生本地文件表情资源（EmoticonMsgInfo，包含真实文件长度与上传行为）并发送type 47；不写收藏数据库，不伪造CDN URL/AES字段。导入函数只同步借用MD5与宽字符路径，消息资源由微信分配、复制和持有引用；不使用把记录缓冲区误传给原生对象构造器的崩溃实验调用。调用前校验DLL SHA256、函数入口与字节指纹。能力不可用明确失败，导入失败返回native_error=14，不降级type 3；unknown请求不自动重发。消息关联使用准备后的实际emoji类型，日志同时记录请求kind和native_kind。
+- 动画输入：Pillow验证全部帧；最多500帧、总计1亿帧像素和120秒，单帧仍受5000万像素限制，转换后继续检查媒体大小。原字节保留与接收端播放分别验收。2026-10-31消息163、164为type 47且有服务器ID，用户已确认两条均以微信表情形式正常播放；XML中的type=0、len=0不应单独解释为播放失败。server_confirmed本身仍不等于接收端播放证明。
 - 语音：WAV 支持 8/16/24/32-bit、单/双声道、8–48 kHz，统一转 16 kHz 单声道 16-bit，再交给 SILK 编码器；SILK 校验容器；MP3 需 ffmpeg。
 - 视频：MP4 直接发送；其他容器需 `WECHAT_BOT_VIDEO_CONVERT=1`，用 ffmpeg 转 H.264/AAC MP4 并检查 `ftyp`。
 - 单文件上限默认 2 MiB（`WECHAT_BOT_MEDIA_BYTES` 可调，最大 64 MiB）；发送上限与接收 64 MiB 上限相互独立。
@@ -214,3 +215,9 @@ queued → cancelled
 - 常驻下载 worker：单会话 3 个任务（2 成功、1 身份不符拒绝），引用释放，进程仍存活。
 - 真实账号：常驻服务 40 秒运行（发送 + 下载 worker 同时存活），收发就绪；一条文本经 `/send/text` 到 filehelper，状态 `server_confirmed`，`message_id=filehelper:37`、非零 `server_id=2789436282422745060`、`delivery_verified=false`；另一次 `--emoji` 运行经 `/send/emoji` 得到 `filehelper:38`、`server_id=795560054143058110`；此前一条文本和一条图片分别得到 `server_confirmed`/`message_recorded`；关闭后 checkpoint 入口字节恢复。
 - **未做**：文档要求的 10 分钟/1 小时/更长运行验收；真实外部联系人和群在常驻服务下的回归；原图独立下载；动态收藏表情发送；多账号。
+
+
+
+2026-10-31 17:28历史资源补齐（首次上传结论已由下方18:02记录修正）：原收藏资源的长度getter固定为0，新文件资源经0x22FC160复制完整基础资源、使用0x9431d38控制表及0x9431c28对象表，并设置原生长度字段+0x1c8；此前失败的两张GIF获得新消息183/184与非零服务器ID。关联增加emoji MD5，status=5转failed；server_id一直未确认则转unknown，重启只恢复准确消息行的观察，不重发。详见LOCAL_ANIMATION_REPAIR.md。
+
+2026-10-31 18:02修正上述17:28结论：资源和长度仍不足以触发首次上传。EmoticonMessageHandler的0x5AF3320在message+0x768上传数据为空时，要求message+0x120的本地wstring路径非空，才调用0x3A2520读取上传文件。local_emoji现用已有wide_assign复制安全staging路径，常驻worker也填充该路径；不只导入展示缓存。补路径前失败的诊断GIF修复后获得消息193；另一个全新哈希首次发送获得194，均type 47/非零服务器ID，且用户确认两张接收端表情正常播放。原生只读记录证明调用来自该处理器读取分支0x5AF373F。未匹配消息的确认扫描重读原始发送watermark，并禁止一个消息ID匹配多个请求；137项Python、142项TypeScript及9组原生表情夹具通过。详见LOCAL_ANIMATION_REPAIR.md。

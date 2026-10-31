@@ -11,7 +11,7 @@ send a picture it just produced.  This module separates the two ideas:
   call (the native layer receives the staged path);
 * generated fixtures keep their manifest check, so tampered evidence is still
   rejected;
-* images are normalised to PNG (the only device-verified native image form);
+* static images are normalised to PNG; GIF bytes retain all animation frames;
   WAV is normalised to mono 16 kHz 16-bit PCM, which the SILK encoder accepts.
 
 Errors are ``PolicyError`` with stable lower-case codes.
@@ -138,6 +138,31 @@ def _normalise_image(data, policy):
         with Image.open(io.BytesIO(data)) as image:
             if image.width * image.height > MAX_PIXELS:
                 raise PolicyError('image_dimensions_too_large', 'image dimensions exceed the limit')
+            frames = getattr(image, 'n_frames', 1)
+            if frames > 500 or frames * image.width * image.height > 100_000_000:
+                raise PolicyError('image_animation_too_large', 'animation exceeds the frame or pixel limit')
+            duration = 0
+            animation = []
+            durations = []
+            loop = image.info.get('loop', 0)
+            for frame in range(frames):
+                image.seek(frame)
+                image.load()
+                delay = max(0, int(image.info.get('duration', 0)))
+                duration += delay
+                if duration > 120000:
+                    raise PolicyError('image_animation_too_large', 'animation exceeds the duration limit')
+                if frames > 1 and fmt != 'gif':
+                    animation.append(image.convert('RGBA').copy())
+                    durations.append(delay)
+            if fmt == 'gif':
+                return data, 'image/gif', 'gif', None
+            if animation:
+                output = io.BytesIO()
+                animation[0].save(output, format='GIF', save_all=True, append_images=animation[1:],
+                                  duration=durations, loop=loop, disposal=2)
+                return output.getvalue(), 'image/gif', 'gif', fmt
+            image.seek(0)
             image.load()
             if fmt == 'png':
                 return data, 'image/png', 'png', None
@@ -355,7 +380,7 @@ def prepare_media(kind, path, policy, staging_root=None):
     converted_from = None
     if kind == 'image':
         data, mime, output_format, converted_from = _normalise_image(data, policy)
-        suffix = '.png'
+        suffix = '.' + output_format
     elif kind == 'file':
         mime, output_format = 'application/octet-stream', (source.suffix.lower().lstrip('.') or 'bin')
         suffix = source.suffix[:16] if source.suffix else '.bin'
@@ -374,6 +399,8 @@ def prepare_media(kind, path, policy, staging_root=None):
             converted_from = 'wav(%d Hz, %d ch, %d-bit)->wav(16000 Hz, mono, 16-bit)' % audio
     else:
         raise PolicyError('unsupported_media_kind', 'unsupported media kind')
+    if len(data) > policy.media_bytes:
+        raise PolicyError('media_too_large', 'normalised media exceeds the configured media limit')
     digest = hashlib.sha256(data).hexdigest()
     directory, staged = _stage(name, data, suffix, staging_root)
     return dict(path=str(staged), directory=str(directory),

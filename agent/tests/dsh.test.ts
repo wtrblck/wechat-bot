@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -66,6 +66,22 @@ class Model extends LlmAdapter {
   }
 }
 
+test('real dsh proactive care has no tools and supports skipping with an empty message array', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-care-')), host = await kernel(root);
+  host.model.answer = '{"messages":[]}';
+  host.adapter.channelTools = () => { throw Error('proactive_must_not_register_tools'); };
+  const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), proactive: true, purpose: 'reply', replyFormat: 'messages-v1',
+    system: '不合适时返回空messages。', context: '最近问过这件事，跳过。', provider: 'mock', model: 'test',
+    session: { key: 'care-' + randomUUID(), id: randomUUID(), generation: 1, scope: 'direct', conversation: 'contact-a', model: 'default', persona: null } };
+  try {
+    const result = await host.adapter.execute(input, new AbortController().signal);
+    assert.equal(result.status, 'completed'); assert.deepEqual(result.replies, []);
+    assert.equal(host.model.calls.length, 1);
+    assert.ok(!host.model.calls[0]!.tools?.length);
+    assert.deepEqual(await host.adapter.reconcile(input), result);
+  } finally { await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
+});
+
 test('real dsh final multi-message envelope survives cold replay and leaves legacy/decision/memory outputs unchanged', async () => {
   const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-messages-')), first = await kernel(root);
   const envelope = JSON.stringify({ messages: ['孩子们，在呢。', '有什么事？'] });
@@ -130,6 +146,38 @@ test('real dsh read_image loads the sandbox copy through durable attachments and
   } finally { await engine.close(); await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
 });
 
+test('real dsh video storyboard reaches model as a durable image and its next request is budgeted',
+  { skip: !existsSync(join(agentRoot, 'tools/video-python/imageio_ffmpeg')) }, async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-video-'));
+  const c = config({ account: { key: 'video-' + randomUUID(), selfId: 'self', bridgeEpoch: 'test-source' },
+    media: { enabled: true }, video: { frames: 4 }, budget: { enabled: true },
+    runtime: { provider: 'deepseek-official', model: 'deepseek-flash' } });
+  const host = await kernel(root, c), store = new Store(c, ':memory:', () => now);
+  const engine = new Engine(c, store, new FakeBridge(), host.adapter, () => {});
+  const session = store.session(normalize(event(1), c)!);
+  const sandbox = new Sandbox(c.root, session.key);
+  try {
+    const resource = engine.resources.video(session, readFileSync(join(agentRoot, '../weixin-research/fixtures/wxbot-video.mp4')));
+    host.model.imagesEnabled = true; host.model.usage = { inputTokens: 1500, outputTokens: 20 };
+    host.model.toolPlan = [{ name: 'video_storyboard', args: { path: resource.path } }];
+    host.adapter.channelTools = (input, signal) => channelTools(engine, input, signal);
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply',
+      system: '查看视频分镜。', context: JSON.stringify(resource), provider: c.runtime.provider, model: c.runtime.model };
+    const result = await host.adapter.execute(input, AbortSignal.timeout(30000));
+    assert.equal(result.status, 'completed'); assert.equal(host.model.calls.length, 2);
+    const image = host.model.calls[1]!.messages.flatMap(m => m.content).find(b => b.type === 'image');
+    if (image?.type !== 'image') throw Error('video_image_missing');
+    const saved = await host.ctx.attachments.readImage(image.attachment);
+    assert.equal(saved.ref.width, 1152); assert.ok(saved.data.byteLength > 100);
+    assert.equal(engine.budget.status().requestCount, 2); assert.equal(engine.budget.status().uncertainRequests, 0);
+    const reservations = store.all('SELECT reserved_nanos FROM budget_requests ORDER BY started,start_seq');
+    assert.ok(reservations[1]!.reserved_nanos > reservations[0]!.reserved_nanos);
+  } finally {
+    await engine.close(); await host.ctx.fiber.dispose();
+    rmSync(sandbox.root, { recursive: true, force: true }); rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('real dsh performs scoped memory index, summary and history tool round trips without injecting summaries upfront', async () => {
   const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-recall-'));
   cpSync(join(agentRoot, 'prompts'), join(root, 'prompts'), { recursive: true });
@@ -165,6 +213,8 @@ test('real dsh exposes only scoped sandbox/web tools and meters the request afte
   const host = await kernel(root, c); const store = new Store(c, ':memory:', () => Date.parse('2026-10-29T10:00:00+08:00'));
   const budget = new DailyBudget(store); host.adapter.setBudget(budget); host.model.toolName = 'workspace_write';
   host.model.usage = { inputTokens: 100, outputTokens: 20 };
+  const observations: { inputId:string; event:import('../src/storage/trace.js').TraceObservation }[]=[];
+  host.adapter.setTrace((inputId,event)=>{observations.push({inputId,event});store.traceRun(inputId,event);});
   let outsideCalls = 0;
   const output = { schema: { type: 'object' as const }, render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: JSON.stringify(value) }] };
   host.ctx.tools.register({ name: 'shell', description: 'must never be inherited', parameters: { type: 'object' }, output, execute: async () => { outsideCalls++; return {}; } });
@@ -182,6 +232,13 @@ test('real dsh exposes only scoped sandbox/web tools and meters the request afte
     assert.deepEqual(host.model.calls[0]!.tools?.map(t => t.name).sort(), ['web_fetch', 'web_search', 'workspace_write']);
     assert.equal(outsideCalls, 0); assert.equal(host.model.calls.length, 2); assert.equal(budget.status().requestCount, 2);
     assert.ok(host.model.calls[1]!.messages.some(m => m.role === 'tool')); assert.equal(budget.status().heldCny, 0);
+    const requests=observations.filter(o=>o.event.phase==='request'&&o.event.state==='usage');
+    assert.equal(requests.length,2);assert.equal(new Set(requests.map(o=>o.event.details.requestId)).size,2);
+    assert.ok(observations.every(o=>o.inputId===input.inputId));
+    assert.equal(requests[0]!.event.details.cacheReadTokens,undefined);
+    assert.equal(observations.filter(o=>o.event.phase==='tool'&&o.event.state==='completed').length,1);
+    assert.ok(!JSON.stringify(observations).includes('sandbox text'));
+    assert.equal(store.one("SELECT count(*) n FROM trace_events WHERE phase='request' AND state='usage'")!.n,2);
     // Even a hallucinated call to a hidden global tool must never reach its implementation.
     host.model.calls.length = 0; host.model.toolName = 'shell';
     await host.adapter.execute({ ...input, inputId: randomUUID(), executionId: randomUUID() }, new AbortController().signal);

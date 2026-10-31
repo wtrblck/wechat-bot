@@ -12,13 +12,21 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 
-# The isolated --inspect child must use the same project-local dependencies as
-# the bridge; sys.path changes made by its parent are not inherited.
-sys.path.insert(0, str(Path(__file__).resolve().parent / 'deps'))
-
 MAX_EMOJI = 8 * 1024 * 1024
 HEX32 = re.compile(r'^[0-9a-fA-F]{32}$')
 CDN_HOSTS = frozenset(('vweixinf.tc.qq.com', 'wxapp.tc.qq.com'))
+
+
+def emoji_identity(content):
+    """Correlation identity only; no CDN credentials and no assumed file size."""
+    if not isinstance(content, str) or len(content.encode('utf-8')) > 1024 * 1024 or '<!DOCTYPE' in content.upper() or '<!ENTITY' in content.upper():
+        return None
+    try:
+        node = ET.fromstring(content).find('emoji')
+        value = node.get('md5', '') if node is not None else ''
+        return value.lower() if HEX32.fullmatch(value) else None
+    except (ET.ParseError, ValueError):
+        return None
 
 
 def parse_emoji(content):
