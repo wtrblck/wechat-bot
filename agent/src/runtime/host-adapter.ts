@@ -8,7 +8,7 @@ import '@deepseek-ai/dsh-system-prompt';
 import '@deepseek-ai/dsh-session-persistence';
 import { Sandbox } from './sandbox.js';
 import type { Config } from '../config.js';
-import type { HostAdapter, HostInput, HostResult } from '../contracts.js';
+import type { HostAdapter, HostInput, HostResult, WorkObservation } from '../contracts.js';
 import type { DailyBudget } from '../budget/daily-budget.js';
 import type { ImageBlock } from '@deepseek-ai/dsh-llm';
 import '@deepseek-ai/dsh-attachment';
@@ -19,6 +19,8 @@ import type { TraceObservation } from '../storage/trace.js';
 
 /** The sole SDK boundary. Logical sessions persist; each settled run gets a bounded execution session. */
 export class DshHostAdapter implements HostAdapter {
+  private recordWork?: (input: HostInput, event: WorkObservation) => void;
+  setWorkRecorder(record: (input: HostInput, event: WorkObservation) => void) { this.recordWork = record; }
   private handles = new Set<AgentHandle>();
   private inputs = new Map<string, { input: HostInput; agent: Agent }>();
   private budget?: DailyBudget;
@@ -67,7 +69,9 @@ export class DshHostAdapter implements HostAdapter {
         }
         if (chunk.type === 'finish') {
           complete = ['stop', 'tool-calls', 'max-tokens'].includes(chunk.reason.kind);
-          this.trace(owner.input.inputId, { phase: 'request', state: 'finished', details: { requestId, reason: chunk.reason.kind } });
+          const failure = chunk.reason.kind === 'error' ? chunk.reason.failure.code : undefined;
+          const code = failure && ['TRANSPORT', 'RATE_LIMIT', 'TIMEOUT', 'CONNECTION', 'OVERLOADED'].includes(failure) ? failure : undefined;
+          this.trace(owner.input.inputId, { phase: 'request', state: 'finished', details: { requestId, reason: chunk.reason.kind, ...(code ? { code } : {}) } });
         }
         yield chunk;
       }
@@ -89,20 +93,28 @@ export class DshHostAdapter implements HostAdapter {
         const allowed = new Set(tools.map(t => t.name));
         agentCtx.tools.presentAs('native');
         agentCtx.tools.restrict({ allow: [] });
+        let workPersistenceFailed = false;
         for (const tool of tools) agentCtx.tools.register({ ...tool, execute: async (...args) => {
-          const callId = randomUUID();
+          const callId = args[1].callId;
+          try { this.recordWork?.(input, { callId, name: tool.name, arguments: args[0], state: 'started' }); }
+          catch { workPersistenceFailed = true; throw Error('work_persistence_failed'); }
           this.trace(input.inputId, { phase: 'tool', state: 'started', details: { callId, name: tool.name } });
+          let result;
           try {
-            const result = await tool.execute(...args);
-            this.trace(input.inputId, { phase: 'tool', state: 'completed', details: { callId, name: tool.name } });
-            return result;
+            result = await tool.execute(...args);
           } catch (error) {
+            this.recordWork?.(input, { callId, name: tool.name, state: 'failed', result: { error: 'tool_execution_error' } });
             this.trace(input.inputId, { phase: 'tool', state: 'failed', details: { callId, name: tool.name, code: 'tool_execution_error' } });
             throw error;
           }
+          // Persist before returning to the model; a persistence failure must not rerun a side effect.
+          try { this.recordWork?.(input, { callId, name: tool.name, state: 'completed', result }); }
+          catch { workPersistenceFailed = true; throw Error('work_persistence_failed'); }
+          this.trace(input.inputId, { phase: 'tool', state: 'completed', details: { callId, name: tool.name } });
+          return result;
         } });
         let steps = 0;
-        agentCtx.tools.guard(exec => allowed.has(exec.name) && ++steps <= this.config.runtime.maxToolSteps ? undefined : 'wechat_tool_denied');
+        agentCtx.tools.guard(exec => !workPersistenceFailed && allowed.has(exec.name) && ++steps <= this.config.runtime.maxToolSteps ? undefined : 'wechat_tool_denied');
         agentCtx.on('agent/pre-step', async (payload, next) => payload.step > this.config.runtime.maxToolSteps ? { kind: 'reject' } : next());
         agentCtx.systemPrompt.section({ name: 'wechat:trusted', order: 0, text: input.system +
           '\n日常工作区为当前会话沙箱，workspace_*只接受相对路径。用read_text_file阅读微信文本附件，用read_image查看微信图片。用send_file发送沙箱文件到当前会话。沙箱外仅通过external_list/read/write工具操作，每次必须等待指定微信联系人批准；工具返回成功之前不可声称已获批准或完成操作，不把自然语言同意当作授权。不执行命令。' +
@@ -140,6 +152,15 @@ export class DshHostAdapter implements HostAdapter {
     try {
       const events = (await reader.read()).events;
       this.budget?.reconcile(input.executionId, events);
+      for (const event of events) {
+        if (event.type !== 'tool/call') continue;
+        const result = events.find(e => e.type === 'tool/result' && e.data.message.toolCallId === event.data.callId);
+        let argumentsValue: unknown = event.data.arguments;
+        try { argumentsValue = JSON.parse(event.data.arguments); } catch { /* Retain invalid arguments as evidence. */ }
+        this.recordWork?.(input, { callId: event.data.callId, name: event.data.name, arguments: argumentsValue,
+          state: result?.type === 'tool/result' ? result.data.message.isError ? 'failed' : 'completed' : 'unknown',
+          result: result?.type === 'tool/result' ? result.data.message.content : { unavailable: 'interrupted_tool_call_do_not_retry_side_effects' } });
+      }
       return projectCommitted(input, events);
     }
     finally { await reader.close(); }
@@ -151,7 +172,11 @@ export function projectCommitted(input: HostInput, events: readonly SessionEvent
   const accepted = events.some(e => e.type === 'user/message' && e.data.id === input.inputId);
   const end = events.findLast(e => e.type === 'turn/end');
   if (!accepted || !end || end.type !== 'turn/end') return { status: 'needs_review', replies: [] };
-  if (end.data.reason.kind !== 'completed') return { status: end.data.reason.kind === 'aborted' ? 'cancelled' : 'failed', replies: [] };
+  if (end.data.reason.kind !== 'completed') {
+    const reason = end.data.reason;
+    const failureCode = reason.kind === 'error' && ['TRANSPORT', 'RATE_LIMIT', 'TIMEOUT', 'CONNECTION', 'OVERLOADED'].includes(reason.error.code ?? '') ? reason.error.code : undefined;
+    return { status: reason.kind === 'aborted' ? 'cancelled' : 'failed', replies: [], ...(failureCode ? { failureCode } : {}) };
+  }
   const message = events.findLast(e => e.type === 'assistant/message' && e.seq < end.seq);
   if (!message || message.type !== 'assistant/message') return { status: 'completed', replies: [] };
   const text = message.data.message.content.filter(b => b.type === 'text').map(b => b.type === 'text' ? b.text : '').join('\n').trim();

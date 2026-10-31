@@ -4,6 +4,9 @@ import type { Config } from '../config.js';
 import { conversationConfig } from '../config.js';
 import { hash, type HostInput, type Session } from '../contracts.js';
 import type { Store } from '../storage/database.js';
+import { mechanismInstruction } from './mechanisms.js';
+import { activeSelfProfile } from './self-profile.js';
+import { replyFormatInstruction } from '../egress/reply-format.js';
 
 const defaults: Record<string, string | null> = {
   system: 'prompts/base.md', persona: 'prompts/personas/default.md', groupScene: 'prompts/group.md',
@@ -63,22 +66,31 @@ export class PromptRegistry {
     }
     this.sources = next;
   }
-  snapshot(session: Session, purpose: HostInput['purpose'], store?: Store) {
+  validateSelfProfile(session: Session, store: Store) {
+    const snapshot = this.snapshot(session, 'reply', store, false);
+    if (Buffer.byteLength(snapshot.system + replyFormatInstruction) > 32000) throw Error('self_profile_effective_prompt_too_large');
+  }
+  snapshot(session: Session, purpose: HostInput['purpose'], store?: Store, persist = true) {
     try { this.validateAll(); this.reloadError = null; }
     catch { if (!this.sources.size) throw Error('no_valid_prompt_version'); this.reloadError = 'prompt_reload_rejected'; }
     const effective = this.effective(session);
     const types = purpose === 'decision' ? ['replyDecision', 'participation'] : purpose === 'memory' ?
       ['memoryExtract', 'memoryConsolidate'] : ['system', 'persona', session.scope === 'group' ? 'groupScene' : 'directScene', 'responseStyle', 'participation', 'toolBehavior'];
-    const sections = types.filter(t => effective[t] !== null).map(type => {
+    const active = purpose === 'reply' && store ? activeSelfProfile(store) : undefined;
+    const sections = types.filter(t => effective[t] !== null || t === 'persona' && active?.persona !== null && active?.persona !== undefined).map(type => {
+      const override = type === 'persona' ? active?.persona : type === 'responseStyle' ? active?.responseStyle : null;
+      if (override !== null && override !== undefined) return { type, source: 'self-profile:' + active!.version, hash: hash(override), role: 'system', text: override };
       const source = this.template(effective[type]);
       return { type, source: effective[type], hash: hash(source), role: 'system', text: this.render(source, session.scope) };
     });
     if (purpose === 'reply' && effective.append) sections.push({ type: 'append', source: 'config', hash: hash(effective.append), role: 'system', text: effective.append });
+    const mechanism = mechanismInstruction(purpose);
+    sections.push({ type: 'mechanisms', source: 'runtime', hash: hash(mechanism), role: 'system', text: mechanism });
     const system = sections.map(s => s.text).join('\n\n');
     if (Buffer.byteLength(system) > 32000) throw Error('effective_prompt_too_large');
     const id = hash([this.config.version, session.key, purpose, sections]);
     const snapshot = { id, purpose, sections, estimatedTokensUpperBound: Buffer.byteLength(system), contextScope: session.key };
-    store?.exec('INSERT OR IGNORE INTO prompt_snapshots VALUES(?,?,?,?,?)', id, session.key, hash(this.config.version), JSON.stringify(snapshot), store.clock());
+    if (persist) store?.exec('INSERT OR IGNORE INTO prompt_snapshots VALUES(?,?,?,?,?)', id, session.key, hash(this.config.version), JSON.stringify(snapshot), store.clock());
     return { ...snapshot, system };
   }
 }

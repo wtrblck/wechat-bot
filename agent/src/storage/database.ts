@@ -34,6 +34,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,reply TEXT NOT NULL,route TEXT NOT NULL,part INTEGER NOT NULL,
         body TEXT NOT NULL,hash TEXT NOT NULL,state TEXT NOT NULL,submitted INTEGER NOT NULL DEFAULT 0,result TEXT,created INTEGER NOT NULL,
         kind TEXT NOT NULL DEFAULT 'text',UNIQUE(reply,part));
+      CREATE TABLE IF NOT EXISTS delivery_batches(reply TEXT PRIMARY KEY,committed INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS outbox_route ON outbox(route,created,part);
       CREATE TABLE IF NOT EXISTS interactions(id TEXT PRIMARY KEY,route TEXT NOT NULL,generation INTEGER NOT NULL,sender TEXT NOT NULL,
         kind TEXT NOT NULL,payload TEXT NOT NULL,parameter_hash TEXT NOT NULL,expires INTEGER NOT NULL,state TEXT NOT NULL,answer TEXT);
@@ -232,10 +233,10 @@ export class Store {
     this.exec('INSERT OR IGNORE INTO trace_events(at,phase,state,run_id,details,event_key) VALUES(?,?,?,?,?,?)',
       this.clock(), event.phase, event.state, runId, JSON.stringify(event.details), key ?? null);
   }
-  traceInput(ids: string[], state: string, reason?: string) {
+  traceInput(ids: string[], state: string, reason?: string, nextEligibleAt?: number) {
     for (const id of ids) {
       const previous = this.one("SELECT state,details FROM trace_events WHERE inbox_id=? AND phase='participation' ORDER BY id DESC LIMIT 1", id);
-      const details = JSON.stringify({ reason: reason ?? null });
+      const details = JSON.stringify({ reason: reason ?? null, ...(nextEligibleAt === undefined ? {} : { nextEligibleAt }) });
       if (previous?.state === state && previous.details === details) continue;
       this.exec("INSERT INTO trace_events(at,phase,state,inbox_id,details) VALUES(?,'participation',?,?,?)", this.clock(), state, id, details);
     }

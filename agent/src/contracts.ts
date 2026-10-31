@@ -26,8 +26,12 @@ export interface HostInput {
   initiatorId?: string;
 }
 export interface CommittedReply { id: string; text: string; messages?: string[] }
-export interface HostResult { status: 'completed' | 'cancelled' | 'failed' | 'needs_review'; replies: CommittedReply[] }
+export interface HostResult { status: 'completed' | 'cancelled' | 'failed' | 'needs_review'; replies: CommittedReply[]; failureCode?: string }
+export interface WorkObservation {
+  callId: string; name: string; state: 'started' | 'completed' | 'failed' | 'unknown'; arguments?: unknown; result?: unknown;
+}
 export interface HostAdapter {
+  setWorkRecorder?(record: (input: HostInput, event: WorkObservation) => void): void;
   imageAttachment?(input: HostInput, data: Uint8Array, mediaType: ImageBlock['attachment']['mediaType'], name: string,
     signal: AbortSignal): Promise<ImageBlock['attachment']>;
   setTrace?(observe: (inputId: string, event: import('./storage/trace.js').TraceObservation, key?: string) => void): void;

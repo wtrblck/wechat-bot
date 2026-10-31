@@ -14,7 +14,7 @@ import { normalize } from '../src/ingress/normalizer.js';
 import { channelTools } from '../src/tools/channel-tools.js';
 import { Engine } from '../src/engine.js';
 import { config, agentRoot, event, now, FakeBridge, FakeHost } from './helpers.js';
-import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
+import { validateJsonSchemaValue, type ToolRunContext } from '@deepseek-ai/dsh-tools';
 import type { HostInput } from '../src/contracts.js';
 import { AttachmentId } from '@deepseek-ai/dsh-attachment';
 
@@ -120,6 +120,63 @@ test('generic public video acquisition probes real bytes, strips signed queries 
     await assert.rejects(bad.acquire('https://example.com/clip.mp4', 'direct', signal()), /container/);
     assert.deepEqual(readdirSync(join(service.sandbox.root, 'video-work')), []);
   } finally { rmSync(service.sandbox.root, { recursive: true, force: true }); }
+});
+
+test('native Bilibili acquisition without subtitles returns lossless metadata and cleans temporary files', async () => {
+  const cfg = c();
+  const download = async (url: string) => ({ url, mime: 'application/json', bytes:
+    url.includes('/view?') ? Buffer.from(JSON.stringify({ code: 0, data: {
+      bvid: 'BV1mHoXBMEf7', title: 'test', pages: [{ cid: 10, duration: 1 }],
+    } })) : url.includes('/playurl?') ? Buffer.from(JSON.stringify({ code: 0, data: {
+      durl: [{ url: 'https://cdn.example.com/clip.mp4' }],
+    } })) : fixture });
+  const service = new VideoService(cfg, 'video-json-test-' + randomUUID(), async (_cfg, args) => {
+    assert.equal(args.action, 'probe');
+    return { duration: 1, audio: false };
+  }, download);
+  try {
+    const { bytes, ...result } = await service.acquire('BV1mHoXBMEf7', 'bilibili', signal());
+    assert.deepEqual(bytes, fixture);
+    assert.deepEqual(validateJsonSchemaValue({ type: 'object' }, result), []);
+    assert.equal(Object.hasOwn(result.metadata, 'path'), false);
+    assert.equal(Object.hasOwn(result, 'captions'), false);
+    assert.deepEqual(readdirSync(join(service.sandbox.root, 'video-work')), []);
+  } finally { rmSync(service.sandbox.root, { recursive: true, force: true }); }
+});
+
+test('fetch video tools return lossless JSON with usable scoped paths and preserve optional captions', async t => {
+  const cfg = c(), store = new Store(cfg, ':memory:', () => now);
+  const engine = new Engine(cfg, store, new FakeBridge(), new FakeHost(), () => {});
+  const session = store.session(normalize(event(1), cfg)!);
+  const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', context: '{}', system: '', provider: 'mock', model: 'test' };
+  const sandbox = new Sandbox(cfg.root, session.key);
+  let captions: Record<string, unknown> | undefined;
+  t.mock.method(VideoService.prototype, 'acquire', async () => ({ bytes: fixture,
+    metadata: { duration: 1, path: undefined }, source: 'https://example.com/clip.mp4',
+    title: undefined, author: undefined, description: undefined, captions }));
+  const tools = channelTools(engine, input, signal());
+  try {
+    for (const name of ['fetch_bilibili_video', 'fetch_douyin_video', 'fetch_video_url']) {
+      const tool = tools.find(v => v.name === name)!;
+      for (const withCaptions of [false, true]) {
+        captions = withCaptions ? { language: 'zh', text: '[0-1] test', source: 'platform_subtitles' } : undefined;
+        const result: any = await tool.execute({ url: 'https://example.com/clip.mp4' }, {} as ToolRunContext);
+        assert.deepEqual(validateJsonSchemaValue(tool.output.schema, result), [], name);
+        assert.deepEqual(result, JSON.parse(JSON.stringify(result)));
+        assert.deepEqual(result.captions, captions);
+        assert.equal(result.evidenceOnly, true);
+        assert.equal(Object.hasOwn(result.metadata, 'path'), false);
+        assert.ok(result.path.startsWith('media/'));
+        assert.deepEqual(engine.resources.read(session.key, result.resourceId), fixture);
+        assert.throws(() => engine.resources.read('foreign', result.resourceId), /denied/);
+        assert.equal((tool.output.render({}, result)[0] as any).text, JSON.stringify(result));
+        if (available) {
+          const probe: any = await tools.find(v => v.name === 'video_probe')!.execute({ path: result.path }, {} as ToolRunContext);
+          assert.equal(probe.duration, 1);
+        }
+      }
+    }
+  } finally { await engine.close(); rmSync(sandbox.root, { recursive: true, force: true }); }
 });
 
 test('cancelling a video worker waits for subprocess exit and leaves slots reusable', { skip: !available }, async () => {

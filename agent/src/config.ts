@@ -14,9 +14,9 @@ const prompts = z.strictObject({
   append: z.string().max(2000).optional(),
 });
 const participation = z.strictObject({
-  debounceMs: int(0, 60000, 2000), maxBatchWaitMs: int(100, 60000, 8000), cooldownSeconds: int(0, 3600, 30),
-  maxRepliesPerMinute: int(1, 10, 2), maxWaitRetries: int(0, 3, 1), decisionContextTokens: int(256, 8192, 2000),
-  maxDecisionsPerMinute: int(1, 60, 6),
+  debounceMs: int(0, 60000, 500), maxBatchWaitMs: int(100, 60000, 2000), cooldownSeconds: int(0, 3600, 2),
+  maxRepliesPerMinute: int(1, 10, 8), maxWaitRetries: int(0, 3, 1), decisionContextTokens: int(256, 8192, 2000),
+  maxDecisionsPerMinute: int(1, 60, 30),
 });
 const override = z.strictObject({ prompts: prompts.optional(), directTrigger: z.enum(['prefix', 'all']).optional(),
   administrators: z.array(id).default([]), participation: participation.partial().optional() });
@@ -32,7 +32,7 @@ export const ConfigSchema = z.strictObject({
     direct: z.strictObject({ mode: z.literal('allowlist').default('allowlist'), allow: z.array(id).default([]), trigger: z.enum(['prefix', 'all']).default('prefix') }),
     group: z.strictObject({ mode: z.literal('allowlist').default('allowlist'), allow: z.array(id).default([]),
       memberMode: z.literal('all_in_allowed_group').default('all_in_allowed_group'), sessionScope: z.literal('group').default('group'), trigger: z.literal('autonomous').default('autonomous') }) }),
-  participation: participation.default({ debounceMs: 2000, maxBatchWaitMs: 8000, cooldownSeconds: 30, maxRepliesPerMinute: 2, maxWaitRetries: 1, decisionContextTokens: 2000, maxDecisionsPerMinute: 6 }),
+  participation: participation.default({ debounceMs: 500, maxBatchWaitMs: 2000, cooldownSeconds: 2, maxRepliesPerMinute: 8, maxWaitRetries: 1, decisionContextTokens: 2000, maxDecisionsPerMinute: 30 }),
   sessions: z.strictObject({ isolation: z.literal('conversation'), crossSessionMemory: z.literal(false) }).default({ isolation: 'conversation', crossSessionMemory: false }),
   social: z.strictObject({ enabled: z.boolean().default(true), toneMinutes: int(1, 120, 30), careCooldownHours: int(1, 168, 24),
     proactive: z.strictObject({ enabled: z.boolean().default(false), contacts: z.array(id).max(100).default([]),

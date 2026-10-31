@@ -120,7 +120,7 @@ export class VideoService {
           output: this.sandbox.path(output, true), maxBytes: max }, bounded);
         if (lstatSync(this.sandbox.path(output)).size >= max) throw Error('video_merge_size_limit');
       }
-      const metadata = await this.probe(output, bounded);
+      const { path: temporaryPath, ...metadata } = await this.probe(output, bounded);
       let captions: Record<string, unknown> | undefined;
       const languages = Object.entries(info.subtitles ?? {}).sort(([a], [b]) => Number(!/^zh|^ai-zh/.test(a)) - Number(!/^zh|^ai-zh/.test(b)));
       const [language, tracks] = languages[0] ?? [];
@@ -137,9 +137,9 @@ export class VideoService {
           if (text) captions = { language, text: text.slice(0, 16000), truncated: text.length > 16000, source: 'platform_subtitles' };
         } catch { bounded.throwIfAborted(); /* Caption failure does not discard a valid video. */ }
       }
-      return { bytes: readFileSync(this.sandbox.path(output)), metadata: { ...metadata, path: undefined },
+      return { bytes: readFileSync(this.sandbox.path(output)), metadata,
         source: platform === 'direct' ? new URL(url).origin + new URL(url).pathname : url,
-        title: info.title, author: info.author, description: info.description, captions,
+        title: info.title, author: info.author, description: info.description, ...(captions ? { captions } : {}),
         note: '已获取文件和平台资料，尚未理解画面；继续调用video_storyboard，台词用video_transcript。' };
     } finally { for (const name of temporary) { try { unlinkSync(this.sandbox.path(name)); } catch {} } }
   }

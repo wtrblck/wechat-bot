@@ -15,6 +15,12 @@ access:
   group:
     allow: []
     trigger: autonomous
+participation:
+  debounceMs: 500
+  maxBatchWaitMs: 2000
+  cooldownSeconds: 2
+  maxRepliesPerMinute: 8
+  maxDecisionsPerMinute: 30
 runtime:
   engine: dsh
   provider: REPLACE_WITH_CONFIGURED_PROVIDER

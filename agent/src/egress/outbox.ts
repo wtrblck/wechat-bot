@@ -17,17 +17,17 @@ export class Outbox {
   constructor(readonly store: Store, readonly bridge: Bridge,
     readonly wait: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)),
     readonly progress: () => void = () => {}) {}
-  async tick(deferredRoutes: ReadonlySet<string> = new Set()) {
+  async tick(deferredRoutes: ReadonlySet<string> = new Set(), onlyRoute?: string, onlyReply?: string) {
     if (this.stopping) return;
     const routes = this.store.all("SELECT DISTINCT route FROM outbox WHERE state IN ('prepared','queued','sending','local_accepted','message_recorded')");
     await Promise.allSettled(routes.map(async r => {
-      if (deferredRoutes.has(r.route)) return;
+      if (deferredRoutes.has(r.route) || onlyRoute && onlyRoute !== r.route) return;
       if (this.busy.has(r.route)) return;
       this.busy.add(r.route);
-      try { await this.route(r.route); } finally { this.busy.delete(r.route); }
+      try { await this.route(r.route, onlyReply); } finally { this.busy.delete(r.route); }
     }));
   }
-  private async route(route: string) {
+  private async route(route: string, onlyReply?: string) {
     const rows = this.store.all('SELECT * FROM outbox WHERE route=? ORDER BY created,rowid,part', route);
     for (const scheduled of rows) {
       if (this.stopping) return;
@@ -41,6 +41,8 @@ export class Outbox {
         continue;
       }
       if (row.state === 'server_confirmed') continue;
+      // A notice may flush only itself, never bypass older work or send unreviewed drafts.
+      if (onlyReply && row.reply !== onlyReply) return;
       try {
         const existing = await this.bridge.request(row.id);
         if (existing) this.update(row, existing);
@@ -64,7 +66,10 @@ export class Outbox {
           this.store.exec('INSERT OR REPLACE INTO metadata VALUES(?,?)', key,
             JSON.stringify({ reply: row.reply, nextAt: this.store.clock() + messageInterval(text) }));
           // This mark commits BEFORE POST, including the crash-before-POST window.
-          this.store.exec('UPDATE outbox SET submitted=1 WHERE id=?', row.id);
+          this.store.transaction(() => {
+            this.store.exec('INSERT OR IGNORE INTO delivery_batches VALUES(?,?)', row.reply, this.store.clock());
+            this.store.exec('UPDATE outbox SET submitted=1 WHERE id=?', row.id);
+          });
           this.update(row, await this.bridge.send(row.body, row.kind));
         }
       } catch (error) {
@@ -83,6 +88,11 @@ export class Outbox {
   private update(row: Row, result: Record<string, any>) {
     if (result.request_id !== row.id || !states.has(result.state)) throw new BridgeError('invalid_request_response');
     this.store.transaction(() => {
+      const firstAcceptance = !accepted.has(row.state) && accepted.has(result.state);
+      if (firstAcceptance && this.store.one(`SELECT r.id FROM runs r JOIN trace_outputs t ON t.run_id=r.id WHERE t.outbox_id=? AND r.purpose='reply'
+        AND EXISTS (SELECT 1 FROM json_each(r.result,'$.replies') j WHERE json_extract(j.value,'$.id')=?)`, row.id, row.reply) &&
+          !this.store.one("SELECT id FROM outbox WHERE reply=? AND id<>? AND state IN ('local_accepted','message_recorded','server_confirmed') LIMIT 1", row.reply, row.id))
+        this.store.exec('UPDATE session_map SET last_reply=? WHERE key=?', this.store.clock(), row.route);
       this.store.exec('UPDATE outbox SET state=?,result=? WHERE id=?', result.state, JSON.stringify({
         state: result.state, message_id: result.message_id, server_id: result.server_id, delivery_verified: false,
         error: result.error_code ?? result.error,
@@ -97,7 +107,12 @@ export class Outbox {
     const pending = this.store.one("SELECT count(*) n FROM outbox WHERE kind IN ('file','image','video') AND json_extract(body,'$.path')=? AND state NOT IN ('server_confirmed','failed','cancelled')", path)!.n;
     if (!pending) this.store.exec('UPDATE artifacts SET refs=0 WHERE path=?', path);
   }
+  committed(reply: string) {
+    return !!this.store.one('SELECT reply FROM delivery_batches WHERE reply=?', reply) ||
+      !!this.store.one("SELECT id FROM outbox WHERE reply=? AND (submitted=1 OR state IN ('local_accepted','message_recorded','server_confirmed')) LIMIT 1", reply);
+  }
   cancelPreparedReply(reply: string, reason: string) {
+    if (this.committed(reply)) return;
     for (const row of this.store.all("SELECT * FROM outbox WHERE reply=? AND state='prepared' AND submitted=0", reply)) {
       this.store.exec("UPDATE outbox SET state='cancelled',result=? WHERE id=?", JSON.stringify({ reason }), row.id);
       this.releaseFile(row);

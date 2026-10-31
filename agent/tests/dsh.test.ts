@@ -37,12 +37,16 @@ class Model extends LlmAdapter {
   toolName?: string;
   toolPlan?: { name: string; args: Record<string, unknown> }[];
   imagesEnabled = false;
+  transportFailure = false;
   answer = '真实宿主回复';
   override async resolveModel(provider: string, model: string) {
     return { provider, id: model, name: model, inputModalities: this.imagesEnabled ? ['text' as const, 'image' as const] : ['text' as const] };
   }
   async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.calls.push(options);
+    if (this.transportFailure) {
+      yield { type: 'finish', reason: { kind: 'error', failure: { code: 'TRANSPORT', message: 'DeepSeek Messages transport failed' } } }; return;
+    }
     const planned = this.toolPlan?.[this.calls.length - 1];
     if (planned || this.toolName && this.calls.length === 1) {
       const block = { type: 'tool-call' as const, id: ToolCallId('tool-call-' + this.calls.length), name: planned?.name ?? this.toolName!, arguments: JSON.stringify(planned?.args ?? { path: 'note.txt', text: 'sandbox text' }) };
@@ -65,6 +69,78 @@ class Model extends LlmAdapter {
     yield { type: 'finish', reason: { kind: 'stop' } };
   }
 }
+
+test('real dsh projects a transport failure as a safe retryable code without raw error leakage', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-transport-')), host = await kernel(root);
+  try {
+    host.model.transportFailure = true;
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), purpose: 'decision',
+      session: { key: 'transport', id: randomUUID(), generation: 1, scope: 'group', conversation: 'group-a@chatroom', model: 'default', persona: null },
+      system: '只判断', context: '{}', provider: 'mock', model: 'test' };
+    const result = await host.adapter.execute(input, new AbortController().signal);
+    assert.equal(result.status, 'failed'); assert.equal(result.failureCode, 'TRANSPORT');
+    assert.ok(!JSON.stringify(result).includes('DeepSeek Messages transport failed'));
+    assert.deepEqual(await host.adapter.reconcile(input), result);
+  } finally { await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
+});
+
+test('real dsh can update only global persona/style and the next snapshot hot loads it', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-profile-'));
+  cpSync(join(agentRoot, 'prompts'), join(root, 'prompts'), { recursive: true });
+  const c = { ...config(), root }, host = await kernel(root, c), store = new Store(c, ':memory:', () => now);
+  const engine = new Engine(c, store, new FakeBridge(), host.adapter, () => {});
+  try {
+    store.ingest({ cursor: 0, events: [], truncated: false });
+    const session = store.session(normalize(event(1), c)!);
+    const before = engine.prompts.snapshot(session, 'reply', store);
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', replyFormat: 'messages-v1',
+      system: before.system, context: '{}', provider: 'mock', model: 'test' };
+    store.startRun(input, []);
+    host.adapter.channelTools = (i, signal) => channelTools(engine, i, signal);
+    host.model.toolPlan = [{ name: 'read_self_profile', args: {} }, { name: 'update_self_profile', args: {
+      expectedVersion: 'base', persona: '你叫海月，温和机灵。', responseStyle: '自然简洁，认真解释时保留细节。', reason: '用户调整角色' } }];
+    host.model.answer = '{"messages":["已保存，下轮生效。"]}';
+    const result = await host.adapter.execute(input, new AbortController().signal);
+    assert.equal(result.status, 'completed');
+    const next = engine.prompts.snapshot(session, 'reply', store);
+    assert.ok(next.system.includes('你叫海月'));
+    assert.ok(next.system.includes('不能修改或覆盖系统约束'));
+    assert.ok(!input.system.includes('你叫海月'));
+    assert.equal(store.one("SELECT state FROM work_results WHERE name='update_self_profile'")!.state, 'completed');
+  } finally { await engine.close(); await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
+});
+
+test('real dsh announces long work through the bridge before invoking the next tool', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-notice-'));
+  const c = { ...config(), root }, host = await kernel(root, c), store = new Store(c, ':memory:', () => now);
+  const bridge = new FakeBridge();
+  // Use project prompts while keeping execution persistence in the isolated temporary root.
+  cpSync(join(agentRoot, 'prompts'), join(root, 'prompts'), { recursive: true });
+  const engine = new Engine(c, store, bridge, host.adapter, () => {});
+  try {
+    store.ingest({ cursor: 0, events: [], truncated: false });
+    const session = store.session(normalize(event(1), c)!);
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', replyFormat: 'messages-v1',
+      system: '先预告再工作。', context: '{}', provider: 'mock', model: 'test' };
+    store.startRun(input, []);
+    host.model.toolPlan = [{ name: 'announce_work', args: { text: '我先整理一下资料。' } }, { name: 'long_work', args: {} }];
+    host.model.answer = '{"messages":["整理好了，这是结论。"]}';
+    let worked = false;
+    host.adapter.channelTools = (i, signal) => [...channelTools(engine, i, signal), {
+      name: 'long_work', description: '离线耗时工作替身', parameters: { type: 'object', properties: {} },
+      execute: async () => {
+        assert.equal(bridge.posts.length, 1);
+        assert.equal(JSON.parse(bridge.posts[0]!).text, '我先整理一下资料。');
+        worked = true; return { result: '整理完成' };
+      }, output: { schema: { type: 'object' }, render: () => [{ type: 'text' as const, text: '整理完成' }] },
+    }];
+    const result = await host.adapter.execute(input, new AbortController().signal);
+    assert.equal(result.status, 'completed'); assert.equal(worked, true);
+    assert.equal(result.replies[0]!.messages?.[0], '整理好了，这是结论。');
+    assert.equal(store.one("SELECT state FROM work_results WHERE name='announce_work'")!.state, 'completed');
+    assert.equal(bridge.posts.length, 1);
+  } finally { await engine.close(); await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
+});
 
 test('real dsh proactive care has no tools and supports skipping with an empty message array', async () => {
   const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-care-')), host = await kernel(root);
@@ -132,6 +208,9 @@ test('real dsh read_image loads the sandbox copy through durable attachments and
       system: '使用read_image查看图片，不猜测。', context: JSON.stringify({ path: descriptor.path }), provider: c.runtime.provider, model: c.runtime.model };
     const result = await host.adapter.execute(input, new AbortController().signal);
     assert.equal(result.status, 'completed'); assert.equal(host.model.calls.length, 2);
+    const evidence = store.one("SELECT id,state,result FROM work_results WHERE name='read_image'")!;
+    assert.equal(evidence.state, 'completed'); assert.ok(evidence.result.includes('attachment'));
+    assert.equal(engine.work.read(session, evidence.id).state, 'completed');
     assert.ok(!host.model.calls[0]!.messages.some(m => m.content.some(b => b.type === 'image')));
     const image = host.model.calls[1]!.messages.flatMap(m => m.content).find(b => b.type === 'image');
     assert.equal(image?.type, 'image');

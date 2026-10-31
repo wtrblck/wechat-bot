@@ -91,8 +91,15 @@ export class Memory {
     return id;
   }
   recent(session: Session, byteBudget: number) {
-    const all = this.store.timeline(session.key, this.store.config.runtime.recentMessages).map(b => this.source(b.message));
-    const selected: (ReturnType<Memory['source']> & { truncated?: boolean })[] = []; let used = 2;
+    const timeline = this.store.timeline(session.key, this.store.config.runtime.recentMessages);
+    const now = this.store.clock();
+    const all = timeline.map((b, index) => {
+      const ageSeconds = Math.max(0, Math.floor((now - b.message.timestampMs) / 1000));
+      return { ...this.source(b.message), ageSeconds,
+        gapSeconds: index ? Math.max(0, Math.floor((b.message.timestampMs - timeline[index - 1]!.message.timestampMs) / 1000)) : 0,
+        recencyWeight: Math.max(0.01, Math.round(2 ** (-ageSeconds / 300) * 100) / 100) };
+    });
+    const selected: (typeof all[number] & { truncated?: boolean })[] = []; let used = 2;
     // Contiguous newest suffix; don't fill holes with unrelated older short messages.
     for (const item of [...all].reverse()) {
       if (Buffer.byteLength(JSON.stringify(item)) + used + 1 > byteBudget) {

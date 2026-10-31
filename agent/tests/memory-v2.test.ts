@@ -85,7 +85,8 @@ test('reply contains a continuous 200-message window including bot sends, dedupl
 
 test('fixed prompts do not consume the chat allowance; large history has an explicit truncation marker', async () => {
   const f = fixture({ runtime: { provider: 'mock', model: 'test', chatContextBytes: 8192 } });
-  writeFileSync(join(f.root, 'prompts/personas/default.md'), '固定人格'.repeat(1000));
+  // Leave room under the fixed system ceiling for the mandatory runtime contract.
+  writeFileSync(join(f.root, 'prompts/personas/default.md'), '固定人格'.repeat(400));
   const bridge = new FakeBridge(); bridge.config = f.c;
   const host = new FakeHost(), engine = new Engine(f.c, f.store, bridge, host, () => {});
   try {

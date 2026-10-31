@@ -62,7 +62,8 @@ export function videoTools(engine: Engine, input: HostInput, signal: AbortSignal
         unchanged(); const { url } = z.strictObject({ url: z.string().min(1).max(4096) }).parse(args);
         const { bytes, ...result } = await video.acquire(url, platform, signal); unchanged();
         const resource = engine.resources.video(input.session, bytes);
-        return { ...result, ...resource, evidenceOnly: true };
+        // The runtime validates lossless JSON before render; omit absent optional fields.
+        return JSON.parse(JSON.stringify({ ...result, ...resource, evidenceOnly: true }));
       } });
     if (platform !== 'direct' && engine.config.web.search) tools.push({ name: platform + '_search',
       description: `搜索${platform === 'bilibili' ? 'B站' : '抖音'}公开索引中的视频/社区资料，返回来源链接与摘要。可能没有结果，不等于平台没有视频；下载视频使用fetch_${platform}_video，不把搜索摘要当作看过视频。`,

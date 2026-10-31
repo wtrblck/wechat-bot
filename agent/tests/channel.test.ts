@@ -107,13 +107,16 @@ test('group silence and natural quiet requests never produce placeholder message
   f.host.action = 'reply'; f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '先别说话')] };
   await f.engine.tick(); await f.engine.drain(); assert.equal(f.host.calls.length, 1); await f.engine.close();
 });
-test('new answer during generation cancels unsubmitted group reply after recheck', async () => {
+test('new answer during generation suppresses delivery but retains the completed draft after recheck', async () => {
   const f = fixture(); f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
   f.host.hook = async input => { if (input.purpose === 'reply') {
     f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '问题已解决', { sender: 'member-b' })] }); f.host.action = 'silent';
   } };
   await f.engine.tick(); await f.engine.drain();
-  assert.equal(f.store.one('SELECT count(*) n FROM outbox')!.n, 0); assert.equal(f.host.calls.length, 3); await f.engine.close();
+  assert.equal(f.store.one('SELECT state FROM outbox')!.state, 'cancelled');
+  const run = f.store.one("SELECT state,result FROM runs WHERE purpose='reply'")!;
+  assert.equal(run.state, 'completed'); assert.ok(JSON.parse(run.result).replies.length);
+  assert.equal(f.host.calls.length, 3); await f.engine.close();
 });
 
 test('a follow-up during generation can approve the answer using the new message ID', async () => {
@@ -199,6 +202,49 @@ test('unavailable queued review preserves the answer and does not create a perma
   assert.equal(f.store.one("SELECT count(*) n FROM runs WHERE purpose='decision' AND state='needs_review'")!.n, 0);
   await f.engine.close();
 });
+test('wait during generation retains a draft and the next input revises it without duplicate delivery', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '请分析两种方案')] };
+  let injected = false;
+  f.host.hook = async input => {
+    if (input.purpose === 'reply' && !injected) {
+      injected = true;
+      f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '只看第二种')] });
+      f.host.action = 'wait';
+    }
+  };
+  await f.engine.tick(); await f.engine.drain();
+  const old = f.store.one('SELECT * FROM outbox')!;
+  assert.equal(old.state, 'prepared');
+  assert.equal(f.store.one('SELECT state FROM reply_reviews')!.state, 'wait');
+  f.bridge.page = { cursor: 2, events: [], truncated: false };
+  f.host.action = 'reply'; f.store.exec('UPDATE session_map SET last_reply=0'); f.advance(1000);
+  await f.engine.tick(); await f.engine.drain();
+  const replies = f.host.calls.filter(c => c.purpose === 'reply');
+  assert.equal(replies.length, 2);
+  assert.ok(JSON.parse(replies[1]!.context).previousWork.some((w: any) => w.draft));
+  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', old.id)!.state, 'cancelled');
+  assert.equal(f.bridge.posts.length, 0);
+  await f.engine.tick();
+  assert.equal(f.bridge.posts.length, 1);
+  await f.engine.close();
+});
+
+test('messages arriving during final review retain rather than cancel completed work', async () => {
+  const f = fixture();
+  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '查一下这个问题')] };
+  f.host.hook = async input => {
+    if (input.purpose === 'reply') f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '补充一条')] });
+    if (input.purpose === 'decision' && JSON.parse(input.context).stage === 'before_send')
+      f.store.ingest({ cursor: 3, truncated: false, events: [event(3, 'group-a@chatroom', '再补充一条')] });
+  };
+  await f.engine.tick(); await f.engine.drain();
+  assert.equal(f.store.one("SELECT state FROM runs WHERE purpose='reply'")!.state, 'completed');
+  assert.equal(f.store.one('SELECT state FROM outbox')!.state, 'prepared');
+  assert.equal(f.store.one('SELECT state FROM reply_reviews')!.state, 'wait');
+  await f.engine.close();
+});
+
 test('UTF-8 chunks preserve complete graphemes and stable request IDs', () => {
   const text = '中文👨‍👩‍👧‍👦e\u0301🇨🇳\n'.repeat(200);
   const chunks = chunkText(text, 3800, 20);
