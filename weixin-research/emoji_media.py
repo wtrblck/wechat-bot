@@ -12,6 +12,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
 
+# The isolated --inspect child must use the same project-local dependencies as
+# the bridge; sys.path changes made by its parent are not inherited.
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'deps'))
+
 MAX_EMOJI = 8 * 1024 * 1024
 HEX32 = re.compile(r'^[0-9a-fA-F]{32}$')
 CDN_HOSTS = frozenset(('vweixinf.tc.qq.com', 'wxapp.tc.qq.com'))

@@ -3,6 +3,7 @@ import io
 import json
 import sqlite3
 import sys
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,6 +38,13 @@ class Response(io.BytesIO):
 
 
 class EmojiResourceTest(unittest.TestCase):
+    def test_image_inspector_loads_project_dependencies_without_global_site_packages(self):
+        script = Path(__file__).resolve().parents[1] / 'emoji_media.py'
+        result = subprocess.run([sys.executable, '-S', str(script), '--inspect'], input=gif(), capture_output=True, timeout=12)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+        info = json.loads(result.stdout)
+        self.assertEqual((info['frames'], info['duration_ms']), (2, 240))
+
     def test_metadata_redacts_credentials_and_bounds(self):
         data=gif()
         metadata=media_metadata(47,xml(data))
@@ -112,6 +120,8 @@ class EmojiResourceTest(unittest.TestCase):
 
 class EmojiIntegrationTest(unittest.TestCase):
     def setUp(self):
+        from offline_native import patch_sender
+        patch_sender(self)
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
         self.data=gif();self.identifier=hashlib.md5(self.data).hexdigest()
         conn=sqlite3.connect(self.root/'emoticon.db')

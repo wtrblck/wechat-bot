@@ -13,6 +13,7 @@ from bridge_config import BridgeConfig
 from bridge_service import BridgeService
 from policy import ObservePolicy, SendPolicy
 from receive_api import EventStore
+from offline_native import patch_sender
 
 
 class FakeTracker:
@@ -94,6 +95,7 @@ class FakeRuntime:
 
 class BridgeServiceTest(unittest.TestCase):
     def setUp(self):
+        patch_sender(self)
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         root = Path(self.directory.name)
