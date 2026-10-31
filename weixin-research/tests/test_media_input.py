@@ -37,6 +37,8 @@ def stereo_wav(rate=44100):
 
 class MediaInputTest(unittest.TestCase):
     def setUp(self):
+        from offline_native import patch_sender
+        patch_sender(self)
         self.directory = tempfile.TemporaryDirectory()
         self.root = Path(self.directory.name)
         self.policy = SendPolicy(recipients=('filehelper',), media_roots=(self.root,))
