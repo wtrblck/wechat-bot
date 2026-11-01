@@ -9,7 +9,10 @@
     stickers: [], stickerTotal: 0, stickerOffset: 0, stickerQuery: '', stickerFingerprint: '',
     requests: new Map(), failures: new Map(), loaded: new Set(), lastSuccess: null,
     timer: null, polling: false, queryTimer: null, stickerTimer: null,
-    services: null, serviceSubmitting: false,
+    memories: [], memoryTotal: 0, memoryOffset: 0, memoryQuery: '', memoryRoute: '', memoryId: null,
+    memoryDetail: null, memoryFingerprint: '', memoryDetailFingerprint: '', memoryTimer: null, memoryPending: false,
+    conversationFingerprint: '',
+    services: null, serviceSubmitting: false, adminClosing: false, adminClosed: false,
     thumbnailQueue: [], thumbnailJobs: 0, thumbnailGeneration: 0,
   };
   const STATUS = {
@@ -91,6 +94,7 @@
     state.requests.delete(channel);
   }
   async function getJSON(channel, path) {
+    if (state.adminClosed || state.adminClosing) return null;
     cancel(channel);
     const controller = new AbortController(); state.requests.set(channel, controller);
     const timer = setTimeout(() => controller.abort('timeout'), 10000);
@@ -113,6 +117,10 @@
     }
   }
   function renderConnection() {
+    if (state.adminClosed) {
+      $('connection').dataset.state = 'offline'; $('connection-text').textContent = '管理台已关闭';
+      $('connection-banner').hidden = false; $('connection-banner').textContent = '管理台后台已关闭，bot 与微信桥接未停止。重新运行 start-admin.cmd 后刷新页面即可恢复。'; return;
+    }
     const failures = state.failures.size;
     const ready = state.loaded.size > 0;
     $('connection').dataset.state = failures ? ready ? 'partial' : 'offline' : ready ? 'online' : 'connecting';
@@ -148,7 +156,9 @@
   function renderServices() {
     const data = state.services;
     if (!data) return;
-    const busy = state.serviceSubmitting || !!data.operation;
+    const busy = state.serviceSubmitting || !!data.operation || state.adminClosing || state.adminClosed;
+    $('admin-shutdown').disabled = !data.shutdownEnabled || busy;
+    $('admin-shutdown').textContent = state.adminClosed ? '管理台已关闭' : state.adminClosing ? '正在关闭…' : '关闭管理台';
     const bot = object(data.agent), bridge = object(data.bridge);
     const budget = object(object(state.overview).budget);
     const budgetPause = bot.running && ['budget_exhausted','budget_blocked'].includes(bot.state);
@@ -163,8 +173,31 @@
     $('service-status').textContent = !data.enabled ? '演示模式 · 服务控制已禁用' : data.operation === 'start' ? '正在开启机器人和微信桥接…' : data.operation === 'stop' ? '正在停止服务，等待当前任务清理…' : data.operation === 'reset-budget' ? '正在重置今日可用额度…' : `机器人：${botLabel}　·　微信桥接：${bridge.ready ? '运行中' : bridge.reachable ? '未就绪' : '已停止'}`;
     $('service-help').textContent = data.lastError ? data.lastError === 'budget_reset_failed' ? '额度未重置。请刷新预算状态；仅每日额度不足时可重置。' : '操作未完成。请查看 agent/data/startup 下的日志；可刷新状态后重试。' : canReset ? `可用余额 ${money(budget.remainingCny)}。点击重置后恢复 ${money(budget.configuredDailyLimitCny ?? budget.dailyLimitCny)} 可用额度，保留既有费用；今日累计花费可能超过原每日上限。运行中的机器人会自动恢复，旧消息不补发。` : '开启后恢复自动回复；停止后保留管理台和历史记录。';
   }
+  async function shutdownAdmin() {
+    if (!state.services?.shutdownEnabled || state.adminClosing || state.adminClosed || state.serviceSubmitting || state.services.operation) return;
+    state.adminClosing = true; renderServices(); clearTimeout(state.timer);
+    clearTimeout(state.queryTimer); clearTimeout(state.stickerTimer); clearTimeout(state.memoryTimer);
+    for (const channel of state.requests.keys()) cancel(channel);
+    try {
+      const response = await fetch('/api/admin/shutdown', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Service-Token': state.services.token }, body: '{}', signal: AbortSignal.timeout(10000) });
+      if (!response.ok || (await response.json()).accepted !== true) throw Error('shutdown_failed');
+      state.adminClosed = true;
+      $('source-dialog').close();
+      document.querySelectorAll('main button,main input,main select,.nav-links button,#source-toggle').forEach((node) => { node.disabled = true; });
+      $('service-status').textContent = '管理台已关闭';
+      $('service-help').textContent = 'bot 与微信桥接未停止；重新运行 start-admin.cmd 后刷新页面。';
+      $('announcement').textContent = '管理台后台已关闭，bot 与微信桥接未停止。';
+    } catch (_) {
+      $('admin-shutdown-status').textContent = '关闭请求未确认，后台可能已关闭或暂时不可用。可尝试刷新页面核对。';
+    } finally {
+      state.adminClosing = false;
+      if (state.adminClosed) { $('admin-shutdown').disabled = true; renderConnection(); }
+      else { renderServices(); schedulePoll(); }
+    }
+  }
   async function serviceAction(action) {
-    if (!state.services || state.serviceSubmitting || state.services.operation) return;
+    if (state.adminClosing || state.adminClosed || !state.services || state.serviceSubmitting || state.services.operation) return;
     state.serviceSubmitting = true;
     renderServices();
     try {
@@ -549,24 +582,147 @@
     const meta = $('sticker-preview-meta'); meta.replaceChildren(el('p', '', `${text(item.mime, '格式未知')} · ${fileSize(item.bytes)}`), el('p', 'muted', `来源：${text(item.source, '本地表情目录（原始路径不公开）')}`), el('p', 'small muted', `表情 ID：${text(item.id)}`));
     $('sticker-dialog').showModal();
   }
+  const memoryConversation = (item) => `${kindLabel(item.scope)}：${text(item.conversationId || item.route)}`;
+  async function loadMemoryConversations() {
+    try {
+      const data = await getJSON('memory-conversations', '/api/memories/conversations'); if (!data) return;
+      const fingerprint = JSON.stringify(data.items); if (fingerprint === state.conversationFingerprint) return;
+      state.conversationFingerprint = fingerprint;
+      const select = $('memory-conversation');
+      const options = [new Option('全部会话', '')];
+      array(data.items).forEach((item) => options.push(new Option(memoryConversation(item), item.route)));
+      if (state.memoryRoute && !options.some((option) => option.value === state.memoryRoute)) options.push(new Option('当前会话（暂无摘要）', state.memoryRoute));
+      select.replaceChildren(...options); select.value = state.memoryRoute;
+    } catch (_) { /* Keep the last successfully loaded conversation choices. */ }
+  }
+  async function loadMemories() {
+    if (state.memoryPending) return;
+    const params = new URLSearchParams({ q: state.memoryQuery, route: state.memoryRoute, limit: String(PAGE_SIZE), offset: String(state.memoryOffset) });
+    try {
+      const data = await getJSON('memories', `/api/memories?${params}`); if (!data) return;
+      const total = finite(data.total) ? data.total : 0;
+      if (state.memoryOffset && state.memoryOffset >= total) {
+        state.memoryOffset = Math.max(0, Math.floor((total - 1) / PAGE_SIZE) * PAGE_SIZE); return loadMemories();
+      }
+      const fingerprint = JSON.stringify(data); if (fingerprint === state.memoryFingerprint) return;
+      state.memoryFingerprint = fingerprint; state.memories = array(data.items); state.memoryTotal = total;
+      renderMemories();
+    } catch (_) {
+      if (!state.memories.length) setPlaceholder($('memory-list'), '记忆暂不可用', '请检查本地管理服务，恢复连接后会自动重试。');
+    } finally { $('memory-list').setAttribute('aria-busy', 'false'); }
+  }
+  function renderMemories() {
+    $('memory-total').textContent = `${number(state.memoryTotal)} 条`;
+    $('memory-page-label').textContent = state.memoryTotal ? `${state.memoryOffset + 1}–${Math.min(state.memoryOffset + state.memories.length, state.memoryTotal)} / ${number(state.memoryTotal)} 条` : '0 条记忆';
+    $('memory-previous').disabled = state.memoryOffset === 0; $('memory-next').disabled = state.memoryOffset + PAGE_SIZE >= state.memoryTotal;
+    if (!state.memories.length) {
+      setPlaceholder($('memory-list'), state.memoryQuery || state.memoryRoute ? '没有匹配的记忆' : '还没有已保存的摘要', state.memoryQuery || state.memoryRoute ? '试试其他关键词，或切换到全部会话。' : '成功总结并保存的记忆会出现在这里，失败的提取不会显示。'); return;
+    }
+    const list = $('memory-list'), scroll = list.scrollTop, focused = list.contains(document.activeElement) ? document.activeElement.dataset.id : null;
+    const rows = state.memories.map((item) => {
+      const row = el('button', 'message-row memory-row'); row.type = 'button'; row.dataset.id = item.id; row.dataset.testid = 'memory-row';
+      row.setAttribute('aria-pressed', String(item.id === state.memoryId));
+      row.append(el('h3', 'memory-row-title', item.title), el('p', 'memory-conversation', memoryConversation(item)), el('p', 'message-row-text', item.preview), el('p', 'small muted', `覆盖至 ${time(item.endTime)}`));
+      row.addEventListener('click', () => selectMemory(item.id)); return row;
+    });
+    list.replaceChildren(...rows); list.scrollTop = scroll;
+    if (focused) rows.find((row) => row.dataset.id === focused)?.focus({ preventScroll: true });
+  }
+  function memoryBack() {
+    const button = el('button', 'mobile-back', '‹ 返回记忆列表'); button.type = 'button'; button.dataset.testid = 'memory-back';
+    button.addEventListener('click', () => {
+      $('memories-view').classList.remove('detail-open');
+      Array.from($('memory-list').children).find((row) => row.dataset.id === state.memoryId)?.focus({ preventScroll: true });
+    }); return button;
+  }
+  function clearMemorySelection() {
+    cancel('memory-detail'); state.failures.delete('memory-detail');
+    state.memoryId = null; state.memoryDetail = null; state.memoryDetailFingerprint = '';
+    $('memories-view').classList.remove('detail-open');
+    const empty = el('div', 'detail-empty'); empty.append(el('h2', '', '读一段已经留下的记忆'), el('p', '', '选择左侧摘要，查看全文与分类标签。'), el('span', 'empty-footnote', '仅展示已成功保存的摘要，浏览不会调用模型。'));
+    $('memory-detail').replaceChildren(empty); $('memory-detail').setAttribute('aria-busy', 'false');
+  }
+  function selectMemory(id) {
+    if (state.memoryId !== id) {
+      state.memoryId = id; state.memoryDetail = null; state.memoryDetailFingerprint = '';
+      const loading = el('div', 'detail-content'); loading.append(memoryBack(), el('p', 'quiet-note', '正在读取摘要全文…')); $('memory-detail').replaceChildren(loading); $('memory-detail').scrollTop = 0;
+    }
+    $('memories-view').classList.add('detail-open');
+    $('memory-list').querySelectorAll('.memory-row').forEach((row) => row.setAttribute('aria-pressed', String(row.dataset.id === id)));
+    loadMemoryDetail();
+  }
+  async function loadMemoryDetail() {
+    const id = state.memoryId; if (!id) return;
+    $('memory-detail').setAttribute('aria-busy', 'true');
+    try {
+      const data = await getJSON('memory-detail', `/api/memories/${encodeURIComponent(id)}`); if (!data || id !== state.memoryId) return;
+      const fingerprint = JSON.stringify(data);
+      if (fingerprint !== state.memoryDetailFingerprint || !state.memoryDetail) {
+        state.memoryDetail = data; state.memoryDetailFingerprint = fingerprint;
+        const root = el('article', 'detail-content memory-content'); root.append(memoryBack());
+        root.append(el('p', 'detail-subtitle', memoryConversation(data)), el('h2', 'memory-title', data.title));
+        const paper = el('section', 'memory-paper'); paper.append(bodyText(data.summary, '此摘要没有可展示的正文。')); root.append(paper);
+        const tags = object(data.tags), labels = { topics: '话题', entities: '人物与实体', states: '状态', aliases: '别名' };
+        const tagSection = el('section', 'memory-tags'); tagSection.setAttribute('aria-label', '分类标签');
+        Object.entries(labels).forEach(([key, label]) => {
+          const values = array(tags[key]); if (!values.length) return;
+          const group = el('div', 'memory-tag-group'); group.append(el('h3', '', label));
+          const chips = el('div', 'memory-tag-values'); values.forEach((value) => chips.append(el('span', 'memory-tag', value))); group.append(chips); tagSection.append(group);
+        });
+        root.append(tagSection, metadata([['覆盖开始', data.startTime, 'time'], ['覆盖结束', data.endTime, 'time'], ['生成时间', data.createdAt, 'time'], ['历史位置', `${number(data.startPosition)}–${number(data.endPosition)}（位置范围，不是消息条数）`], ['记忆 ID', data.id, 'id'], ['会话标识', data.route, 'id']]), el('p', 'memory-note quiet-note', '仅展示已成功保存的摘要，内容为模型整理结果，可能存在遗漏或误解。浏览不会调用模型。'));
+        const scroll = $('memory-detail').scrollTop, backFocused = document.activeElement?.dataset.testid === 'memory-back';
+        $('memory-detail').replaceChildren(root); $('memory-detail').scrollTop = scroll;
+        if (backFocused) root.querySelector('.mobile-back')?.focus({ preventScroll: true });
+      }
+      $('memory-detail').querySelector('.detail-fetch-error')?.remove();
+    } catch (_) {
+      if (id !== state.memoryId) return;
+      if (state.memoryDetail) {
+        if (!$('memory-detail').querySelector('.detail-fetch-error')) $('memory-detail').prepend(el('p', 'detail-fetch-error', '摘要暂时无法更新，当前显示上次读取的内容；记录可能已被清理。'));
+      } else {
+        const root = el('div', 'detail-content'); root.append(memoryBack(), el('h2', '', '无法读取这条记忆'), el('p', 'quiet-note', '摘要可能已被清理，或本地服务暂时不可用。可以返回选择其他记忆。')); $('memory-detail').replaceChildren(root);
+      }
+    } finally { if (id === state.memoryId) $('memory-detail').setAttribute('aria-busy', 'false'); }
+  }
+  function resetMemoryFilter() {
+    clearTimeout(state.memoryTimer); state.memoryPending = false;
+    state.memoryQuery = $('memory-search').value.trim(); state.memoryRoute = $('memory-conversation').value; state.memoryOffset = 0;
+    resetMemoryPage();
+  }
+  function resetMemoryPage() {
+    cancel('memories'); clearMemorySelection(); state.memories = []; state.memoryFingerprint = '';
+    $('memory-list').scrollTop = 0; $('memory-list').setAttribute('aria-busy', 'true');
+    setPlaceholder($('memory-list'), '正在读取记忆…', '从本地已保存摘要读取。', true);
+    if (state.view === 'memories') loadMemories();
+  }
   function changeView(view) {
-    state.view = view; const messages = view === 'messages';
-    $('messages-view').hidden = !messages; $('stickers-view').hidden = messages;
-    $('page-title').textContent = messages ? '消息观察台' : '本地表情库';
-    document.querySelector('.skip-link').href = messages ? '#message-search' : '#sticker-search';
-    document.querySelector('.skip-link').textContent = messages ? '跳到消息搜索' : '跳到表情搜索';
-    ['messages', 'stickers'].forEach((key) => { const nav = $(`nav-${key}`); nav.classList.toggle('active', key === view); if (key === view) nav.setAttribute('aria-current', 'page'); else nav.removeAttribute('aria-current'); });
-    if (messages) { state.failures.delete('stickers'); loadMessages(); if (state.selectedId) loadDetail(); }
-    else { state.failures.delete('detail'); cancel('detail'); loadStickers(); processThumbnails(); }
+    state.view = view;
+    const names = { messages: ['消息观察台', '消息'], memories: ['已总结记忆', '记忆'], stickers: ['本地表情库', '表情'] };
+    const channels = { messages: ['messages','detail'], memories: ['memories','memory-detail','memory-conversations'], stickers: ['stickers'] };
+    Object.keys(names).forEach((key) => {
+      $(`${key}-view`).hidden = key !== view;
+      const nav = $(`nav-${key}`); nav.classList.toggle('active', key === view);
+      if (key === view) nav.setAttribute('aria-current', 'page');
+      else { nav.removeAttribute('aria-current'); channels[key].forEach((channel) => { cancel(channel); state.failures.delete(channel); }); }
+    });
+    $('page-title').textContent = names[view][0];
+    document.querySelector('.skip-link').href = `#${view === 'messages' ? 'message' : view === 'memories' ? 'memory' : 'sticker'}-search`;
+    document.querySelector('.skip-link').textContent = `跳到${names[view][1]}搜索`;
+    document.querySelector('.workspace-footer > span').textContent = `${names[view][1]}记录 · 只读`;
+    if (view === 'messages') { loadMessages(); if (state.selectedId) loadDetail(); }
+    else if (view === 'memories') { loadMemoryConversations(); loadMemories(); if (state.memoryId) loadMemoryDetail(); }
+    else { loadStickers(); processThumbnails(); }
     renderConnection(); schedulePoll();
   }
-  function schedulePoll() { clearTimeout(state.timer); state.timer = setTimeout(poll, document.hidden ? 30000 : 2000); }
+  function schedulePoll() { clearTimeout(state.timer); if (!state.adminClosed && !state.adminClosing) state.timer = setTimeout(poll, document.hidden ? 30000 : 2000); }
   async function poll() {
+    if (state.adminClosed || state.adminClosing) return;
     if (state.polling) { schedulePoll(); return; }
     state.polling = true;
     try {
       const jobs = [loadOverview(), loadServices()];
       if (state.view === 'messages') { jobs.push(loadMessages()); if (state.selectedId) jobs.push(loadDetail()); }
+      else if (state.view === 'memories') { jobs.push(loadMemories(), loadMemoryConversations()); if (state.memoryId) jobs.push(loadMemoryDetail()); }
       else if (state.failures.has('stickers')) jobs.push(loadStickers());
       await Promise.allSettled(jobs);
     } finally { state.polling = false; schedulePoll(); }
@@ -576,6 +732,15 @@
     poll(); $('announcement').textContent = '正在刷新本地记录。';
   }
   $('nav-messages').addEventListener('click', () => changeView('messages'));
+  $('nav-memories').addEventListener('click', () => changeView('memories'));
+  $('memory-search').addEventListener('input', () => {
+    clearTimeout(state.memoryTimer); state.memoryPending = true; cancel('memories'); cancel('memory-detail');
+    state.memoryTimer = setTimeout(resetMemoryFilter, 300);
+  });
+  $('memory-search').addEventListener('keydown', (event) => { if (event.key === 'Enter') resetMemoryFilter(); });
+  $('memory-conversation').addEventListener('change', resetMemoryFilter);
+  $('memory-previous').addEventListener('click', () => { state.memoryOffset = Math.max(0, state.memoryOffset - PAGE_SIZE); resetMemoryPage(); });
+  $('memory-next').addEventListener('click', () => { state.memoryOffset += PAGE_SIZE; resetMemoryPage(); });
   $('nav-stickers').addEventListener('click', () => changeView('stickers'));
   $('refresh-button').addEventListener('click', refresh);
   $('message-search').addEventListener('input', () => { clearTimeout(state.queryTimer); state.queryPending = true; cancel('messages'); state.queryTimer = setTimeout(resetMessageFilter, 300); });
@@ -591,6 +756,9 @@
   $('sticker-next').addEventListener('click', () => { state.stickerOffset += PAGE_SIZE; $('stickers-view').scrollTop = 0; loadStickers(); });
   const openSource = () => { $('source-dialog').showModal(); if (!state.overview) loadOverview(); };
   $('source-toggle').addEventListener('click', openSource); $('privacy-button').addEventListener('click', openSource);
+  $('admin-shutdown').addEventListener('click', () => { $('shutdown-dialog').showModal(); });
+  $('shutdown-cancel').addEventListener('click', () => $('shutdown-dialog').close());
+  $('shutdown-confirm').addEventListener('click', () => { $('shutdown-dialog').close(); shutdownAdmin(); });
   $('source-close').addEventListener('click', () => $('source-dialog').close());
   $('service-start').addEventListener('click', () => serviceAction('start'));
   $('service-stop').addEventListener('click', () => serviceAction('stop'));

@@ -5,7 +5,7 @@ import { join, relative, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { Context } from '@deepseek-ai/cordis';
-import Llm, { LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm';
+import Llm, { LlmAdapter, ToolCallId, ReasoningEffortId, type LlmResolvedModelInfo, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm';
 import Agents from '@deepseek-ai/dsh-agent';
 import Sessions, { SessionId } from '@deepseek-ai/dsh-session';
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt';
@@ -39,8 +39,10 @@ class Model extends LlmAdapter {
   imagesEnabled = false;
   transportFailure = false;
   answer = '真实宿主回复';
+  reasoning?: LlmResolvedModelInfo['reasoning'];
+  truncated = false;
   override async resolveModel(provider: string, model: string) {
-    return { provider, id: model, name: model, inputModalities: this.imagesEnabled ? ['text' as const, 'image' as const] : ['text' as const] };
+    return { provider, id: model, name: model, ...(this.reasoning ? { reasoning: this.reasoning } : {}), inputModalities: this.imagesEnabled ? ['text' as const, 'image' as const] : ['text' as const] };
   }
   async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.calls.push(options);
@@ -66,7 +68,7 @@ class Model extends LlmAdapter {
     if (this.failFirst && this.calls.length === 1) {
       yield { type: 'finish', reason: { kind: 'error', failure: { code: 'TEST_RETRY', message: 'simulated retry' } } }; return;
     }
-    yield { type: 'finish', reason: { kind: 'stop' } };
+    yield { type: 'finish', reason: { kind: this.truncated ? 'max-tokens' : 'stop' } };
   }
 }
 
@@ -434,5 +436,53 @@ test('locked dsh cancellation settles the turn and suppresses interrupted partia
     assert.equal(host.ctx.agents.get(SessionId(input.executionId)), undefined);
   } finally {
     await host.ctx.fiber.dispose(); const rel = relative(tmpdir(), root); assert.ok(rel && !rel.startsWith('..') && !isAbsolute(rel)); rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('memory uses the exact-route lowest declared effort and 4096 output tokens, metered from actual SDK options', async () => {
+  for (const declared of [false, true]) {
+    const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-memory-policy-'));
+    const c = { ...config({ budget: { enabled: true }, runtime: { provider: 'deepseek-official', model: 'deepseek-flash' } }), root };
+    // Pricing stays in the checked-in fixture, never a network lookup.
+    cpSync(join(agentRoot, 'config'), join(root, 'config'), { recursive: true, filter: path => !path.endsWith('agent.local.yaml') });
+    const host = await kernel(root, c), store = new Store(c, ':memory:', () => Date.parse('2026-10-29T10:00:00+08:00'));
+    const budget = new DailyBudget(store); host.adapter.setBudget(budget);
+    const low = ReasoningEffortId('adapter-minimal'), high = ReasoningEffortId('adapter-intensive');
+    if (declared) host.model.reasoning = { efforts: [{ id: low, name: 'Minimum' }, { id: high, name: 'Maximum' }], defaultEffort: high };
+    host.model.usage = { inputTokens: 20, outputTokens: 10 };
+    const traces: unknown[] = []; host.adapter.setTrace((_id, e) => traces.push(e));
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), purpose: 'memory',
+      session: { key: randomUUID(), id: randomUUID(), generation: 1, scope: 'group', conversation: 'group-a@chatroom', model: 'default', persona: null },
+      system: '只生成摘要JSON。', context: '{}', provider: c.runtime.provider, model: c.runtime.model };
+    try {
+      await host.adapter.execute(input, new AbortController().signal);
+      const options = host.model.calls[0]!;
+      assert.equal(options.maxTokens, 4096);
+      assert.equal(options.reasoningEffort, declared ? low : undefined);
+      assert.deepEqual(options.tools ?? [], []);
+      assert.ok(!JSON.stringify(options.messages).includes('video_storyboard'));
+      assert.ok(!JSON.stringify(options.messages).includes('workspace_*'));
+      assert.ok(JSON.stringify(options.messages).includes('只生成摘要JSON'));
+      assert.equal(budget.status().requestCount, 1); assert.equal(budget.status().uncertainRequests, 0);
+      const reserved = store.one('SELECT reserved_nanos FROM budget_requests')!.reserved_nanos;
+      assert.ok(reserved >= 4096 * 4000);
+      await host.adapter.execute({ ...input, inputId: randomUUID(), executionId: randomUUID(), purpose: 'reply' }, new AbortController().signal);
+      assert.equal(host.model.calls[1]!.maxTokens, 4096);
+      assert.equal(host.model.calls[1]!.reasoningEffort, declared ? high : undefined);
+      await host.adapter.execute({ ...input, inputId: randomUUID(), executionId: randomUUID(), purpose: 'decision' }, new AbortController().signal);
+      assert.equal(host.model.calls[2]!.maxTokens, 1600);
+      assert.equal(host.model.calls[2]!.reasoningEffort, declared ? high : undefined);
+      assert.ok(!JSON.stringify(host.model.calls[2]!.messages).includes('send_file'));
+      host.model.truncated = true;
+      const truncated = { ...input, inputId: randomUUID(), executionId: randomUUID() };
+      const result = await host.adapter.execute(truncated, new AbortController().signal);
+      assert.deepEqual(result, { status: 'failed', replies: [], failureCode: 'MAX_TOKENS' });
+      assert.ok(JSON.stringify(traces).includes('MAX_TOKENS'));
+      const calls = host.model.calls.length;
+      assert.deepEqual(await host.adapter.reconcile(truncated), result); assert.equal(host.model.calls.length, calls);
+      const cold = await kernel(root, c);
+      try { assert.deepEqual(await cold.adapter.reconcile(truncated), result); assert.equal(cold.model.calls.length, 0); }
+      finally { await cold.ctx.fiber.dispose(); }
+    } finally { store.close(); await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
   }
 });

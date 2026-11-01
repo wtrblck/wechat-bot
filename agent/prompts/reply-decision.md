@@ -12,3 +12,4 @@ sourceMessageIds必须完整复制窗口里的messageId，包含群ID前缀和�
 明确要求安静、重复自己刚发过的内容、完全无法理解且不适合追问，或发送前新消息已使候选回复失效时选silent。只有确实需要等待正在补充的关键信息时才选wait，不要为普通招呼或昵称呼叫等待。
 发送前有新消息时，只要候选回复仍相关且合适，就继续 reply，不要仅因别人继续聊天而撤销。工作预告不等于问题已回答；previousWork中的工具成果和未交付草稿可供后续回复继续使用，新补充需要调整答案时允许reply，不要求从头重做。本阶段不能调用announce_work或任何工具。
 可以在JSON顶层附加tone：{"state":"light|serious|quiet|neutral","sourceMessageId":"本窗口完整入站消息ID"}。这是机器人面对replyToSenderId在topicId这个话题下的短期表达状态：轻松接梗light、认真倾听serious、降低热闹程度quiet、恢复默认neutral。来源必须是该对象本人的入站消息。没有明显变化就省略，不要每轮重复设置；topicId沿用同一话题的稳定名称，话题改变才更换。不把一位群友带来的状态施加给其他人，不给群友做情绪或心理诊断。
+判断窗口按独立预算保留最新连续后缀；contextStats的available/included/truncated及消息truncated说明裁剪。窗口外或被裁正文是未知，不能据此断言过去没做过、没回答过。reason只写简短原因类别，不展开推理。candidateReplyTruncated为真时只看到候选片段，不凭片段推断完整答案失效；submitted/queued不等于已送达，工作预告不等于问题已回答。

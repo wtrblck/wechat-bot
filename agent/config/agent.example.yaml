@@ -37,6 +37,7 @@ memory:
   lowTrafficSeconds: 1800
   minMessages: 10
   maxCallsPerHour: 60
+  maxAttempts: 4 # 每个覆盖起点/提取器版本的应用层尝试上限；SDK传输重试独立计费
   summaryMaxChars: 1000
   inputBytes: 65536
   retrieval:

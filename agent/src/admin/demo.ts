@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validateConfig } from '../config.js';
 import { Store } from '../storage/database.js';
-import type { HostInput, Message } from '../contracts.js';
+import { hash, type HostInput, type Message } from '../contracts.js';
 
 /** Synthetic only; never loads local config, bridge credentials, or a real chat DB. */
 export function createAdminDemo() {
@@ -43,6 +43,20 @@ export function createAdminDemo() {
         store.exec('UPDATE outbox SET state=?,result=? WHERE id=?',sequence===4?'failed':sequence===5?'unknown':'server_confirmed',JSON.stringify(sequence===4?{code:'bridge_rejected'}:{}),o.id);
       }
     });
+    // Saved summary fixtures only: no model call or real conversation data.
+    const direct=store.one('SELECT key FROM session_map LIMIT 1')!.key;
+    const group=hash(['demo-memory-group']);
+    store.exec('INSERT INTO session_map(key,id,generation,conversation,scope,model) VALUES(?,?,?,?,?,?)',group,'demo-memory-session',0,'周末散步讨论群@chatroom','group','default');
+    for(let i=0;i<55;i++) {
+      const end=now-i*3600000,route=i%3===0?group:direct;
+      const summary=i===0?'大家约定周六上午九点在公园东门集合，遇雨改到附近书店。小林负责带野餐垫，小周确认路线。\n\n'+
+        '还没有确认的是午餐地点，先比较步行距离，再在群里确定。以下是摘要中的原始文本，并非可执行页面：<img src=x onerror=alert(1)>。\n\n'+
+        '讨论中提到希望减少临时变更，并在出发前一天统一确认时间、路线和天气。'.repeat(12):
+        `第 ${i+1} 段演示记忆：讨论了${i%2?'阅读计划与书单':'散步路线和集合安排'}，已确定基本方向，具体细节留待下次确认。`;
+      store.exec('INSERT INTO memory_segments VALUES(?,?,?,?,?,?,?,?,?,?,?)',hash(['demo-memory',i]),route,i*20+1,i*20+19,end-1800000,end,
+        i===0?'周末散步：集合安排与待确认事项':`${i%2?'阅读计划':'散步安排'} · 第 ${i+1} 段`,
+        JSON.stringify({topics:[i%2?'阅读':'周末散步'],entities:['小林','小周'],states:['午餐地点待确认'],aliases:['东门集合点']}),summary,'private-demo-path',end+60000);
+    }
     store.exec("INSERT OR REPLACE INTO metadata VALUES('runtime_status',?)",JSON.stringify({state:'stopped',updated:now,diagnostics:['demo_fixture_no_bot']}));
     mkdirSync(join(root,'stickers'));
     writeFileSync(join(root,'stickers','演示像素.png'),Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6K1sAAAAASUVORK5CYII=','base64'));

@@ -7,8 +7,9 @@ import { AdminReadModel, safeText } from './read-model.js';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { ServiceControl, ServiceAction } from './service-control.js';
 
-export function createAdminServer(config: Config, options: { staticRoot: string; clock?: () => number; services?: ServiceControl } ) {
+export function createAdminServer(config: Config, options: { staticRoot: string; clock?: () => number; services?: ServiceControl; shutdown?: () => void } ) {
   const model = new AdminReadModel(config, options.clock);
+  let shuttingDown = false;
   const serviceToken = randomBytes(32).toString('hex');
   const json = (res: ServerResponse, status: number, value: unknown) => {
     res.writeHead(status, { 'Content-Type':'application/json; charset=utf-8' }); res.end(JSON.stringify(value));
@@ -32,11 +33,12 @@ export function createAdminServer(config: Config, options: { staticRoot: string;
       if (decoded.includes('\\') || decoded.split('/').some(s=>s==='..'||s==='.') || /[\x00-\x1f]/.test(decoded)) return json(res,400,{error:'path_denied'});
       const url = new URL(raw,origin), path = url.pathname;
       if (path === '/api/services' && req.method === 'GET') {
-        return json(res, 200, options.services ? { ...await options.services.status(), token: serviceToken } : { enabled: false });
+        return json(res, 200, { ...(options.services ? await options.services.status() : { enabled: false }), shutdownEnabled: !!options.shutdown, token: serviceToken });
       }
       const serviceAction = /^\/api\/services\/(start|stop|reset-budget)$/.exec(path);
-      if (serviceAction && req.method === 'POST') {
-        if (!options.services) return json(res, 403, { error: 'service_control_disabled' });
+      const adminShutdown = path === '/api/admin/shutdown';
+      if ((serviceAction || adminShutdown) && req.method === 'POST') {
+        if (adminShutdown ? !options.shutdown : !options.services) return json(res, 403, { error: 'service_control_disabled' });
         const supplied = req.headers['x-service-token'];
         if (req.headers.origin !== origin || typeof supplied !== 'string' || !/^[a-f0-9]{64}$/.test(supplied) ||
             !timingSafeEqual(Buffer.from(supplied), Buffer.from(serviceToken))) return json(res, 403, { error: 'service_control_denied' });
@@ -47,8 +49,17 @@ export function createAdminServer(config: Config, options: { staticRoot: string;
         let value;
         try { value = JSON.parse(body); } catch { return json(res, 400, { error: 'invalid_action_body' }); }
         if (!value || Array.isArray(value) || typeof value !== 'object' || Object.keys(value).length) return json(res, 400, { error: 'invalid_action_body' });
-        const action = serviceAction[1] as ServiceAction;
-        return options.services.action(action) ? json(res, 202, { accepted: true, operation: action }) : json(res, 409, { error: 'service_operation_busy' });
+        if (adminShutdown) {
+          if (options.services && (await options.services.status()).operation) return json(res,409,{error:'service_operation_busy'});
+          if (!shuttingDown) {
+            shuttingDown = true;
+            res.once('finish', () => options.shutdown!());
+          }
+          return json(res,202,{accepted:true,operation:'shutdown'});
+        }
+        if (shuttingDown) return json(res,409,{error:'admin_closing'});
+        const action = serviceAction![1] as ServiceAction;
+        return options.services!.action(action) ? json(res, 202, { accepted: true, operation: action }) : json(res, 409, { error: 'service_operation_busy' });
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') { res.setHeader('Allow','GET, HEAD'); return json(res,405,{error:'read_only'}); }
       const number = (name:string, fallback:number, max:number) => {
@@ -61,6 +72,14 @@ export function createAdminServer(config: Config, options: { staticRoot: string;
       if(path==='/api/messages')return json(res,200,model.messages({q,status:url.searchParams.get('status')??'',limit:number('limit',50,100),offset:number('offset',0,1000000),after:number('after',0,Number.MAX_SAFE_INTEGER)}));
       const message = /^\/api\/messages\/([a-f0-9]{64})$/.exec(path);
       if(message) { const detail=model.detail(message[1]!); return json(res,detail?200:404,detail??{error:'not_found'}); }
+      if(path==='/api/memories/conversations')return json(res,200,model.memoryConversations());
+      if(path==='/api/memories') {
+        const route=url.searchParams.get('route')??'';
+        if(route&&!/^[a-f0-9]{64}$/.test(route))throw Error('invalid_query');
+        return json(res,200,model.memories({q,route,limit:number('limit',50,100),offset:number('offset',0,1000000)}));
+      }
+      const memory = /^\/api\/memories\/([a-f0-9]{64})$/.exec(path);
+      if(memory) { const detail=model.memoryDetail(memory[1]!);return json(res,detail?200:404,detail??{error:'not_found'}); }
       if(path==='/api/stickers') {
         const offset=number('offset',0,1000000),limit=number('limit',50,100);
         if(!config.stickers.enabled)return json(res,200,{enabled:false,items:[],total:0,offset,limit,truncated:false,note:'表情库未启用。'});

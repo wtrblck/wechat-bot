@@ -87,3 +87,23 @@ test('next reply sees prior tool evidence, undelivered draft and actual output s
     assert.ok(Buffer.byteLength(input.context) <= f.c.runtime.chatContextBytes);
   } finally { await engine.close(); }
 });
+
+test('decision work projection omits tool arguments, results, paths and delivered drafts across generations', () => {
+  const f = fixture();
+  try {
+    f.work.record(f.input, { callId: 'lookup', name: 'web_fetch', arguments: { path: 'PRIVATE_PATH' }, state: 'completed', result: { text: 'PRIVATE_RESULT' } });
+    f.store.completeRun(f.input.inputId, 'completed', { status: 'completed', replies: [{ id: 'draft', text: '有限草稿'.repeat(100) }] });
+    const first = f.work.decisionContext(f.session) as any[];
+    assert.equal(first[0].draftTruncated, true); assert.ok([...first[0].draft].length <= 160);
+    assert.equal(first[0].tools[0].name, 'web_fetch'); assert.equal(first[0].tools[0].state, 'completed');
+    assert.ok(!JSON.stringify(first).includes('PRIVATE'));
+    assert.deepEqual(f.work.decisionContext({ ...f.session, id: 'foreign' }), []);
+    assert.deepEqual(f.work.decisionContext({ ...f.session, generation: 2 }), []);
+    f.store.prepareMessages(f.session, 'draft', ['已提交'], { runId: f.input.inputId });
+    f.store.exec('UPDATE outbox SET submitted=1');
+    const submitted = f.work.decisionContext(f.session) as any[];
+    assert.equal(submitted[0].draft, undefined); assert.equal(submitted[0].output[0].submitted, true);
+    f.store.exec("UPDATE runs SET input='{}'");
+    assert.deepEqual(f.work.decisionContext(f.session), []);
+  } finally { f.store.close(); }
+});

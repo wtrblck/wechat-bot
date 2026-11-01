@@ -282,7 +282,9 @@ export class Store {
       this.exec('DELETE FROM social_tones WHERE expires<=?', this.clock());
       this.exec('DELETE FROM social_care WHERE created<?', this.clock() - 8 * 86400000);
       this.exec('DELETE FROM social_followups WHERE due<?', this.clock() - 8 * 86400000);
-      this.exec("UPDATE runs SET input='{}',source_ids='[]',result=NULL WHERE created<? AND state IN ('completed','failed','cancelled')", cutoff);
+      this.exec(`UPDATE runs SET input='{}',source_ids='[]',result=NULL WHERE created<? AND state IN ('completed','failed','cancelled')
+        AND id NOT IN (SELECT json_extract(value,'$.runId') FROM metadata
+          WHERE key LIKE 'summary_retry_v3:%' AND json_valid(value) AND json_extract(value,'$.runId') IS NOT NULL)`, cutoff);
       this.exec("UPDATE outbox SET body='{}',result=NULL WHERE created<? AND state IN ('server_confirmed','failed','cancelled')", cutoff);
       this.exec("DELETE FROM participation_decisions WHERE created<? AND state<>'pending'", cutoff);
       this.exec("DELETE FROM prompt_snapshots WHERE created<? AND id NOT IN (SELECT id FROM runs WHERE state IN ('dispatching','needs_review'))", cutoff);

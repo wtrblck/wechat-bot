@@ -64,6 +64,22 @@ export class Work {
     }
     return items.reverse();
   }
+  /** Participation sees delivery facts and a small draft, never tool payloads or read instructions. */
+  decisionContext(session: Session) {
+    const items: unknown[] = [];
+    for (const run of this.store.all("SELECT * FROM runs WHERE route=? AND purpose='reply' ORDER BY created DESC,rowid DESC LIMIT 3", session.key)) {
+      const input = JSON.parse(run.input) as HostInput;
+      if (input.session?.id !== session.id || input.session.generation !== session.generation) continue;
+      const output = this.store.all('SELECT o.state,o.submitted,o.kind FROM outbox o JOIN trace_outputs t ON t.outbox_id=o.id WHERE t.run_id=? ORDER BY o.created,o.part LIMIT 12', run.id)
+        .map(r => ({ state: r.state, submitted: !!r.submitted, kind: r.kind }));
+      const tools = this.store.all('SELECT name,state FROM work_results WHERE run_id=? ORDER BY created DESC,rowid DESC LIMIT 6', run.id)
+        .map(r => ({ name: r.name, state: r.state }));
+      const result = run.result ? JSON.parse(run.result) : undefined;
+      const draft = !output.some(o => o.submitted) ? result?.replies?.map((r: { text: string }) => r.text).join('\n') : undefined;
+      items.push({ state: run.state, tools, output, ...(draft ? { draft: [...draft].slice(0, 160).join(''), draftTruncated: [...draft].length > 160 } : {}) });
+    }
+    return items.reverse();
+  }
   sweep() {
     const cutoff = this.store.clock() - this.store.config.storage.retentionDays * 86400000;
     this.store.exec('DELETE FROM work_results WHERE created<?', cutoff);

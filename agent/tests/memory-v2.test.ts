@@ -9,7 +9,7 @@ import { Engine } from '../src/engine.js';
 import { Outbox } from '../src/egress/outbox.js';
 import { normalize } from '../src/ingress/normalizer.js';
 import { channelTools } from '../src/tools/channel-tools.js';
-import type { HostInput } from '../src/contracts.js';
+import { hash, type HostInput } from '../src/contracts.js';
 import { config, event, now, FakeBridge, FakeHost, agentRoot } from './helpers.js';
 
 const summary = (title = '召唤规则') => JSON.stringify({ title, summary: '群友讨论是否需要称呼机器人才能召唤，随后追问是否必须添加称呼，尚未形成新的约定。',
@@ -43,16 +43,16 @@ test('summarized interaction preferences reach later replies with source attribu
     assert.deepEqual(f.memory.social.context(f.session, ['someone-else']), []);
   } finally { await engine.close(); rmSync(f.root, { recursive: true, force: true }); }
 });
-function fixture(extra: Record<string, unknown> = {}) {
+function fixture(extra: Record<string, unknown> = {}, durable = false) {
   const root = mkdtempSync(join(tmpdir(), 'wechat-memory-v2-'));
   cpSync(join(agentRoot, 'prompts'), join(root, 'prompts'), { recursive: true });
   let time = now;
-  const c = { ...config(extra), root }, store = new Store(c, ':memory:', () => time);
+  const c = { ...config(extra), root }, clock = () => time, file = durable ? join(root, 'retry.sqlite') : ':memory:', store = new Store(c, file, clock);
   store.ingest({ events: [], cursor: 0, truncated: false });
   const memory = new Memory(store);
   const session = store.session(normalize(event(1, 'group-a@chatroom'), c)!);
   const ingest = (events: Record<string, unknown>[]) => store.ingest({ events, cursor: Number(events.at(-1)?.sequence ?? store.checkpoint().cursor), truncated: false });
-  return { root, c, store, memory, session, ingest, advance: (ms: number) => time += ms,
+  return { root, c, store, memory, session, ingest, file, clock, advance: (ms: number) => time += ms,
     cleanup: () => { store.close(); rmSync(root, { recursive: true, force: true }); } };
 }
 
@@ -219,8 +219,147 @@ test('background summary uses an independent execution while reply generation re
     const memoryInput = host.calls.findLast(i => i.purpose === 'memory')!, replyInput = host.calls.find(i => i.purpose === 'reply')!;
     assert.notEqual(memoryInput.executionId, replyInput.executionId);
     assert.ok(!memoryInput.system.includes('姓名叫“牢大”'));
-    assert.equal(JSON.parse(memoryInput.context).messages.length, 2);
+    assert.equal(JSON.parse(memoryInput.context).messages.length, 1);
     const tools = channelTools(engine, replyInput, new AbortController().signal);
     assert.ok(tools.some(t => t.name === 'memory_search')); assert.ok(tools.some(t => t.name === 'history_read'));
+  } finally { await engine.close(); rmSync(f.root, { recursive: true, force: true }); }
+});
+
+function retryState(store: Store, route: string) {
+  return JSON.parse(store.one('SELECT value FROM metadata WHERE key=?', 'summary_retry_v3:' + route)!.value);
+}
+
+test('truncated summaries shrink but never publish; attempts and backoff survive restart, new messages and media changes', async () => {
+  const f = fixture({ memory: { enabled: true, batchMessages: 8, minMessages: 1 } }, true);
+  const bridge = new FakeBridge(); bridge.config = f.c;
+  const host = new FakeHost();
+  host.execute = async input => {
+    host.calls.push(input);
+    return { status: 'failed', replies: [], failureCode: 'MAX_TOKENS' };
+  };
+  let store = f.store, engine = new Engine(f.c, store, bridge, host, () => {});
+  const logs: Record<string, unknown>[] = [];
+  try {
+    bridge.page = { cursor: 8, truncated: false, events: Array.from({ length: 8 }, (_, i) => event(i + 1, 'group-a@chatroom')) };
+    // Only background work: avoid generating group replies in this test.
+    store.ingest(bridge.page); store.exec("UPDATE inbox SET state='observed'");
+    await engine.tick(); await engine.drain();
+    assert.equal(retryState(store, f.session.key).attempts, 1);
+    assert.equal(retryState(store, f.session.key).nextAt, f.clock() + 60000);
+    assert.equal(store.one('SELECT count(*) n FROM memory_segments')!.n, 0);
+    await engine.close();
+    store = new Store(f.c, f.file, f.clock);
+    engine = new Engine(f.c, store, bridge, host, e => logs.push(e));
+    await engine.recover();
+    // Change an attachment descriptor and add new history; neither changes coverage identity.
+    const originalSource = engine.memory.source.bind(engine.memory);
+    engine.memory.source = m => ({ ...originalSource(m), attachment: { kind: 'image', state: 'unavailable', note: 'changed' } } as any);
+    store.ingest({ cursor: 9, truncated: false, events: [event(9, 'group-a@chatroom')] });
+    store.exec("UPDATE inbox SET state='observed'"); bridge.page = { cursor: 9, truncated: false, events: [] };
+    await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 1);
+    for (const [delay, size, attempt] of [[60000, 4, 2], [300000, 2, 3], [1800000, 1, 4]]) {
+      store.exec('UPDATE consumer_lock SET expires=?', f.clock() + delay! + 30000); f.advance(delay!); store.heartbeat(); await engine.tick(); await engine.drain();
+      assert.equal(retryState(store, f.session.key).attempts, attempt);
+      assert.equal(JSON.parse(host.calls.at(-1)!.context).messages.length, size);
+    }
+    assert.equal(retryState(store, f.session.key).paused, true);
+    assert.equal(retryState(store, f.session.key).reason, 'SUMMARY_ATTEMPTS_EXHAUSTED');
+    store.exec('UPDATE consumer_lock SET expires=?', f.clock() + 8 * 86400000 + 30000); f.advance(8 * 86400000); store.heartbeat();
+    for (let i = 0; i < 3; i++) { await engine.tick(); await engine.drain(); }
+    assert.equal(host.calls.length, 4);
+    assert.equal(logs.filter(e => e.event === 'memory_extract_paused').length, 1);
+    assert.equal(store.one('SELECT count(*) n FROM chat_history')!.n, 9);
+    assert.equal(store.one('SELECT count(*) n FROM summary_checkpoints')!.n, 0);
+    // A different conversation still makes progress while this coverage start is paused.
+    store.session(normalize(event(10, 'group-b@chatroom'), f.c)!);
+    store.ingest({ cursor: 11, truncated: false, events: [event(10, 'group-b@chatroom'), event(11, 'group-b@chatroom')] });
+    store.exec("UPDATE inbox SET state='observed'"); bridge.page = { cursor: 11, events: [], truncated: false };
+    store.exec('UPDATE consumer_lock SET expires=?', f.clock() + 1830000); f.advance(1800000); store.heartbeat(); await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 5); assert.notEqual(host.calls.at(-1)!.session.key, f.session.key);
+    // A changed extractor explicitly permits one new bounded series.
+    writeFileSync(join(f.root, 'prompts/memory/extract.md'), readFileSync(join(f.root, 'prompts/memory/extract.md'), 'utf8') + '\n精简摘要。');
+    await engine.tick(); await engine.drain();
+    assert.equal(retryState(store, f.session.key).attempts, 1);
+  } finally { await engine.close(); rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('valid summary publication retries reuse the durable model output even beyond retention and after restart', async () => {
+  const f = fixture({ memory: { enabled: true, batchMessages: 2, minMessages: 1 } }, true);
+  const bridge = new FakeBridge(); bridge.config = f.c;
+  const host = new FakeHost();
+  const execute = host.execute.bind(host);
+  host.execute = async (input, signal) => {
+    const result = await execute(input, signal);
+    if (input.purpose === 'memory') result.replies[0]!.text = summary();
+    return result;
+  };
+  let engine = new Engine(f.c, f.store, bridge, host, () => {}), store = f.store;
+  try {
+    store.ingest({ cursor: 2, truncated: false, events: [event(1, 'group-a@chatroom'), event(2, 'group-a@chatroom')] });
+    store.exec("UPDATE inbox SET state='observed'"); bridge.page = { cursor: 2, truncated: false, events: [] };
+    engine.memory.files.write = () => { throw Error('disk_failure'); };
+    await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 1);
+    const state = retryState(store, f.session.key);
+    assert.equal(state.reason, 'SUMMARY_PUBLICATION_FAILED'); assert.ok(state.runId);
+    await engine.close();
+    // A changed extractor does not throw away an already valid pending publication.
+    const prompt = join(f.root, 'prompts/memory/extract.md');
+    writeFileSync(prompt, readFileSync(prompt, 'utf8') + '\n请保留关键上下文。');
+    f.advance(8 * 86400000);
+    store = new Store(f.c, f.file, f.clock); store.sweep();
+    assert.notEqual(store.one('SELECT input FROM runs WHERE id=?', state.runId)!.input, '{}');
+    engine = new Engine(f.c, store, bridge, host, () => {});
+    await engine.recover(); await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 1);
+    assert.equal(store.one('SELECT count(*) n FROM memory_segments')!.n, 1);
+    assert.equal(store.one('SELECT position FROM summary_checkpoints')!.position, 2);
+    assert.equal(store.one('SELECT value FROM metadata WHERE key=?', 'summary_retry_v3:' + f.session.key), undefined);
+  } finally { await engine.close(); rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('legacy summary timestamps start a new bounded policy; maxAttempts=1 pauses immediately', async () => {
+  const f = fixture({ memory: { enabled: true, batchMessages: 2, minMessages: 1, maxAttempts: 1 } });
+  const bridge = new FakeBridge(); bridge.config = f.c;
+  const host = new FakeHost(), engine = new Engine(f.c, f.store, bridge, host, () => {});
+  try {
+    f.ingest([event(1, 'group-a@chatroom'), event(2, 'group-a@chatroom')]);
+    f.store.exec("UPDATE inbox SET state='observed'");
+    f.store.exec('INSERT INTO metadata VALUES(?,?)', 'summary_retry:' + f.session.key, String(f.clock() + 60000));
+    bridge.page = { cursor: 2, truncated: false, events: [] };
+    await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 1); assert.equal(retryState(f.store, f.session.key).paused, true);
+    f.store.exec('UPDATE consumer_lock SET expires=?', f.clock() + 90001); f.advance(60001); f.store.heartbeat(); await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 1);
+  } finally { await engine.close(); rmSync(f.root, { recursive: true, force: true }); }
+});
+
+test('interrupted memory attempts reconcile without replay or putting unrelated prepared output into review', async () => {
+  const f = fixture({ memory: { enabled: true, batchMessages: 2, minMessages: 1 } });
+  const bridge = new FakeBridge(); bridge.config = f.c;
+  const host = new FakeHost(), engine = new Engine(f.c, f.store, bridge, host, () => {});
+  try {
+    f.ingest([event(1, 'group-a@chatroom'), event(2, 'group-a@chatroom')]);
+    f.store.exec("UPDATE inbox SET state='observed'"); bridge.page = { cursor: 2, events: [], truncated: false };
+    const batch = engine.memory.pending(f.session);
+    const extractor = hash(['summary-policy-v3', engine.prompts.snapshot(f.session, 'memory').sections.map(s => [s.type, s.hash])]);
+    const input: HostInput = { inputId: 'interrupted-summary', executionId: 'interrupted-execution', session: f.session,
+      purpose: 'memory', provider: 'mock', model: 'test', system: '', context: JSON.stringify({ startPosition: batch[0]!.position,
+        endPosition: batch.at(-1)!.position, messages: batch.map(b => engine.memory.source(b.message)) }) };
+    f.store.startRun(input, []);
+    f.store.exec('INSERT INTO metadata VALUES(?,?)', 'summary_retry_v3:' + f.session.key, JSON.stringify({
+      start: batch[0]!.position, extractor, attempts: 1, nextAt: 0, batchSize: 2, runId: input.inputId }));
+    f.store.prepareReply(f.session, 'already-prepared', '此前的有效回复');
+    await engine.recover();
+    assert.equal(f.store.one('SELECT state FROM runs WHERE id=?', input.inputId)!.state, 'failed');
+    assert.equal(f.store.one('SELECT state FROM outbox')!.state, 'prepared');
+    await engine.tick(); await engine.drain();
+    assert.equal(host.calls.length, 0);
+    assert.equal(retryState(f.store, f.session.key).attempts, 1);
+    assert.equal(retryState(f.store, f.session.key).runId, undefined);
+    f.advance(60000); await engine.memoryTick(); await engine.drain();
+    assert.equal(host.calls.filter(i => i.purpose === 'memory').length, 1);
+    assert.equal(retryState(f.store, f.session.key).attempts, 2);
   } finally { await engine.close(); rmSync(f.root, { recursive: true, force: true }); }
 });

@@ -8,6 +8,7 @@ import { Outbox } from './egress/outbox.js';
 import { PromptRegistry } from './prompts/registry.js';
 import { Memory, fitJson, summarySchema } from './memory/memory.js';
 import { replyFormatInstruction } from './egress/reply-format.js';
+import { decisionContext, estimateDecisionTokens } from './participation/context.js';
 import { parseDecision } from './participation/decision.js';
 import { Interactions } from './interactions/registry.js';
 import { Resources } from './media/resources.js';
@@ -84,6 +85,7 @@ export class Engine {
       let result: HostResult;
       try { result = await this.host.reconcile(input) ?? { status: 'needs_review', replies: [] }; }
       catch { result = { status: 'needs_review', replies: [] }; }
+      if (input.purpose !== 'reply' && result.status === 'needs_review') result = { ...result, status: 'failed' };
       if (input.proactive) {
         result = { status: 'cancelled', replies: [] };
         this.store.exec("UPDATE outbox SET state='cancelled' WHERE reply=? AND submitted=0 AND state='prepared'", 'care:' + JSON.parse(input.context).followUpJobId);
@@ -443,8 +445,11 @@ export class Engine {
     }
     const snapshot = this.prompts.snapshot(session, purpose, this.store);
     const allowance = purpose === 'memory' ? this.config.memory.inputBytes : this.config.runtime.chatContextBytes;
+    const decisionTokens = purpose === 'decision' ?
+      (conversationConfig(this.config, session.scope, session.conversation)?.participation?.decisionContextTokens ?? this.config.participation.decisionContextTokens) : undefined;
     // Fixed prompts have their own validated ceiling; they never consume the chat allowance.
     if (Buffer.byteLength(context) > allowance) throw Error('context_budget_exceeded');
+    if (decisionTokens !== undefined && estimateDecisionTokens(context) > decisionTokens) throw Error('decision_context_budget_exceeded');
     const route = session.model === 'default' ? this.config.runtime : this.config.runtime.models[session.model];
     if (!route) throw Error('unknown_model_alias');
     const system = snapshot.system + (purpose === 'reply' ? replyFormatInstruction : '') + (proactive ?
@@ -461,15 +466,16 @@ export class Engine {
     this.store.startRun(input, ids);
     this.store.exec('INSERT OR REPLACE INTO context_audit VALUES(?,?,?,?)', inputId, session.key,
       JSON.stringify({ purpose, systemBytes: Buffer.byteLength(input.system), contextBytes: Buffer.byteLength(context),
-        allowanceBytes: allowance, ...JSON.parse(context).contextStats }), this.store.clock());
+        allowanceBytes: allowance, ...(decisionTokens === undefined ? {} : { allowanceEstimatedTokens: decisionTokens,
+          estimatedContextTokens: estimateDecisionTokens(context) }), ...JSON.parse(context).contextStats }), this.store.clock());
     const timeout = AbortSignal.timeout(this.config.runtime.turnTimeoutSeconds * 1000);
     let result: HostResult;
     try { result = await this.host.execute(input, AbortSignal.any([signal, timeout])); }
     catch { result = await this.host.reconcile(input).catch(() => undefined) ?? { status: 'needs_review', replies: [] }; }
-    // Participation decisions have no tools or outbound effects. This also
+    // Memory and participation decisions have no tools or outbound effects. This also
     // applies to format-repair calls: an unavailable decision cannot leave a
     // permanent ambiguous-reply block on the conversation.
-    if (purpose === 'decision' && result.status === 'needs_review') result = { ...result, status: 'failed' };
+    if (purpose !== 'reply' && result.status === 'needs_review') result = { ...result, status: 'failed' };
     if (purpose !== 'reply') this.store.completeRun(inputId, result.status, result);
     return { input, result };
   }
@@ -489,30 +495,30 @@ export class Engine {
     const watermark = Math.max(...messages.map(m => m.sequence));
     const id = hash(['decision', session.key, session.generation, watermark, suffix]);
     const p = { ...this.config.participation, ...conversationConfig(this.config, session.scope, session.conversation)?.participation };
-    const previousWork = this.work.context(session, Math.min(8192, Math.floor(this.config.runtime.chatContextBytes / 4)));
-    const recent = this.memory.recent(session, this.config.runtime.chatContextBytes - Buffer.byteLength(JSON.stringify(previousWork)) - 4096);
-    const existingTones = fitJson(new SocialState(this.store).tones(session, messages.slice(-30).map(m => m.senderId)), 1024);
-    // The participation model has no tools. Don't expose read-tool directives/paths that invite fake tool calls.
-    const decisionRecent = recent.recent.map(({ attachment, ...m }) => ({ ...m,
-      ...(attachment ? { attachment: { kind: attachment.kind, state: attachment.state, format: attachment.format } } : {}) }));
-    const context = JSON.stringify({ nowMs: this.store.clock(), stage: suffix ? 'before_send' : 'participation', candidateReply: candidate?.slice(0, 1000),
-      recent: decisionRecent, previousWork, evidenceOnly: true, tones: existingTones, socialState: { recentBotMessages: decisionRecent.slice(-12).filter(m => m.speaker === 'assistant').length,
-        lastReplyAt: this.store.one('SELECT last_reply FROM session_map WHERE key=?', session.key)?.last_reply ?? 0 },
-      contextStats: { available: recent.availableMessages, included: recent.includedMessages, truncated: recent.truncated } });
+    const recent = this.memory.recent(session, Number.MAX_SAFE_INTEGER);
+    const built = decisionContext({ recent: recent.recent, tokens: p.decisionContextTokens, bytes: this.config.runtime.chatContextBytes,
+      nowMs: this.store.clock(), stage: candidate !== undefined ? 'before_send' : 'participation', candidate,
+      previousWork: this.work.decisionContext(session), tones: new SocialState(this.store).tones(session, messages.slice(-30).map(m => m.senderId)),
+      incomingIds: new Set(messages.filter(m => m.direction === 'incoming').map(m => m.messageId)),
+      lastReplyAt: this.store.one('SELECT last_reply FROM session_map WHERE key=?', session.key)?.last_reply ?? 0 });
+    const context = built.context;
+    const visible = messages.filter(m => built.visibleIds.has(m.messageId));
     this.store.exec('INSERT OR IGNORE INTO participation_decisions VALUES(?,?,?,?,0,NULL,?)', id, session.key, watermark, 'pending', this.store.clock());
     const record = this.store.one('SELECT * FROM participation_decisions WHERE id=?', id)!;
-    if (record.result) return parseDecision(record.result, messages);
-    const { result } = await this.decisionCall(session, context, sourceIds, signal, id);
+    if (record.result) return parseDecision(record.result, visible);
+    const { input: executed, result } = await this.decisionCall(session, context, sourceIds, signal, id);
+    const executedIds = new Set<string>(JSON.parse(executed.context).recent.map((m: Message) => m.messageId));
+    const executedWindow = visible.filter(m => executedIds.has(m.messageId));
     if (result.status !== 'completed' || !result.replies[0]) throw Error('decision_failed');
     let parsed;
-    try { parsed = parseDecision(result.replies[0].text, messages); }
+    try { parsed = parseDecision(result.replies[0].text, executedWindow); }
     catch {
       this.log({ event: 'decision_format_retry', route: hash(session.key).slice(0, 12) });
-      const repairContext = JSON.stringify({ ...JSON.parse(context), formatCorrection:
-        '上次输出格式或引用无效。当前没有工具，不要输出工具调用或XML。只返回规定的action/reason/sourceMessageIds/topicId/replyToSenderId JSON；所有ID必须来自本窗口。需要看图时选择reply，由后续回复阶段读取图片。' });
+      const repairContext = built.repairContext;
       const repair = await this.decisionCall(session, repairContext, sourceIds, signal, hash([id, 'format-repair-v1']));
       if (repair.result.status !== 'completed' || !repair.result.replies[0]) throw Error('decision_failed');
-      parsed = parseDecision(repair.result.replies[0].text, messages);
+      const repairIds = new Set<string>(JSON.parse(repair.input.context).recent.map((m: Message) => m.messageId));
+      parsed = parseDecision(repair.result.replies[0].text, visible.filter(m => repairIds.has(m.messageId)));
     }
     this.store.exec('UPDATE participation_decisions SET state=?,result=? WHERE id=?', parsed.action, JSON.stringify(parsed), id);
     if (parsed.tone) new SocialState(this.store).tone(session, messages.find(m => m.messageId === parsed.tone!.sourceMessageId)!, parsed.topicId, parsed.tone.state);
@@ -680,39 +686,77 @@ export class Engine {
     for (const session of sessions) {
       const activeKey = 'memory:' + session.key;
       if (this.active.has(activeKey) || !this.memory.due(session)) continue;
-      const retryKey = 'summary_retry:' + session.key;
-      if (Number(this.store.one('SELECT value FROM metadata WHERE key=?', retryKey)?.value ?? 0) > now) continue;
       const batch = this.memory.pending(session);
+      if (!batch.length) continue;
+      // Identity never depends on mutable media descriptors, batch end, or new arrivals.
+      const extractor = hash(['summary-policy-v3', this.prompts.snapshot(session, 'memory').sections.map(s => [s.type, s.hash])]);
+      const retryKey = 'summary_retry_v3:' + session.key;
+      type Retry = { start: number; extractor: string; attempts: number; nextAt: number; batchSize: number;
+        runId?: string; paused?: boolean; reason?: string };
+      const saved = this.store.one('SELECT value FROM metadata WHERE key=?', retryKey)?.value;
+      let retry: Retry | undefined = saved ? JSON.parse(saved) : undefined;
+      if (!retry || retry.start !== batch[0]!.position || retry.extractor !== extractor && !retry.runId)
+        retry = { start: batch[0]!.position, extractor, attempts: 0, nextAt: 0, batchSize: batch.length };
+      const state = retry;
+      const persist = () => this.store.exec('INSERT OR REPLACE INTO metadata VALUES(?,?)', retryKey, JSON.stringify(state));
+      if (state.paused || state.nextAt > now) continue;
+      if (!state.runId && state.attempts >= this.config.memory.maxAttempts) {
+        state.paused = true; state.reason = 'SUMMARY_ATTEMPTS_EXHAUSTED'; persist();
+        this.log({ event: 'memory_extract_paused', route: hash(session.key).slice(0, 12), code: state.reason, attempts: state.attempts });
+        continue;
+      }
+      const prior = state.runId ? this.store.one('SELECT input FROM runs WHERE id=?', state.runId) : undefined;
+      const priorContext = prior ? JSON.parse((JSON.parse(prior.input) as HostInput).context) : undefined;
       const prefix: typeof batch = []; let used = 512;
-      for (const item of batch) {
+      for (const item of batch.slice(0, state.batchSize)) {
+        if (priorContext && item.position > priorContext.endPosition) break;
         const bytes = Buffer.byteLength(JSON.stringify(this.memory.source(item.message))) + 1;
-        if (used + bytes > this.config.memory.inputBytes) break;
+        if (!priorContext && used + bytes > this.config.memory.inputBytes) break;
         prefix.push(item); used += bytes;
       }
-      if (!prefix.length) { this.log({ event: 'summary_message_too_large', route: hash(session.key).slice(0, 12) }); continue; }
+      if (!prefix.length) {
+        state.paused = true; state.reason = 'SUMMARY_MESSAGE_TOO_LARGE'; persist();
+        this.log({ event: 'memory_extract_paused', route: hash(session.key).slice(0, 12), code: state.reason }); continue;
+      }
       const controller = new AbortController();
-      const extractor = hash(this.prompts.snapshot(session, 'memory').sections.map(s => [s.type, s.hash]));
-      const context = JSON.stringify({ startPosition: prefix[0]!.position, endPosition: prefix[prefix.length - 1]!.position,
+      const context = prior ? (JSON.parse(prior.input) as HostInput).context : JSON.stringify({
+        startPosition: prefix[0]!.position, endPosition: prefix.at(-1)!.position,
         messages: prefix.map(b => this.memory.source(b.message)) });
-      const prior = this.store.all("SELECT state,created FROM runs WHERE route=? AND purpose='memory' AND json_extract(input,'$.context')=? ORDER BY created DESC", session.key, context);
-      if (prior[0] && prior[0].state !== 'completed' && now - prior[0].created < 60000) continue;
-      const attempts = prior.filter(r => r.state !== 'completed').length;
-      const batchId = hash(['summary-v2', session.key, prefix.map(b => [b.position, hash(b.message)]), extractor, attempts]);
+      if (!state.runId) {
+        state.attempts++;
+        state.runId = hash(['summary-v3', session.key, state.start, extractor, state.attempts]);
+        state.batchSize = prefix.length;
+        // Claim durably before dispatch. Interrupted attempts reuse this exact run on restart.
+        persist();
+      }
+      const batchId = state.runId;
+      let valid = false;
       const task = this.call(session, 'memory', context, [], controller.signal, batchId)
         .then(({ result }) => {
+          if (result.status !== 'completed' || !result.replies[0]) throw Error(result.failureCode === 'MAX_TOKENS' ? 'MAX_TOKENS' : 'SUMMARY_MODEL_FAILED');
           try {
-            if (result.status !== 'completed' || !result.replies[0]) throw Error('summary_model_failed');
-            summarySchema.parse(JSON.parse(result.replies[0].text));
-            if ([...JSON.parse(result.replies[0].text).summary].length > this.config.memory.summaryMaxChars) throw Error('summary_too_long');
-          } catch (error) { this.store.exec("UPDATE runs SET state='failed' WHERE id=?", batchId); throw error; }
-          const id = this.memory.commitSummary(session, prefix, result.replies[0].text, extractor);
-          this.store.exec('DELETE FROM metadata WHERE key=?', retryKey);
+            const parsed = summarySchema.parse(JSON.parse(result.replies[0].text));
+            if ([...parsed.summary].length > this.config.memory.summaryMaxChars) throw Error('summary_too_long');
+          } catch { throw Error('SUMMARY_FORMAT_INVALID'); }
+          valid = true;
+          const id = this.memory.commitSummary(session, prefix, result.replies[0].text, state.extractor);
           this.log({ event: 'summary_saved', segmentId: id, messages: prefix.length, remaining: this.memory.backlog(session.key) });
         })
-        .catch(() => {
-          // Invalid output retries after backoff; valid model output is reused if file/DB publication fails.
-          this.store.exec('INSERT OR REPLACE INTO metadata VALUES(?,?)', retryKey, String(this.store.clock() + 60000));
-          this.log({ event: 'memory_extract_failed', route: hash(session.key).slice(0, 12) });
+        .catch(error => {
+          // Publication errors keep a valid durable run: retry publication without paying again.
+          if (valid) {
+            state.nextAt = this.store.clock() + 60000; state.reason = 'SUMMARY_PUBLICATION_FAILED'; persist();
+          } else {
+            const code = error instanceof Error && ['MAX_TOKENS', 'SUMMARY_FORMAT_INVALID'].includes(error.message) ? error.message : 'SUMMARY_MODEL_FAILED';
+            this.store.exec("UPDATE runs SET state='failed' WHERE id=?", batchId);
+            delete state.runId;
+            if (code === 'MAX_TOKENS' || code === 'SUMMARY_FORMAT_INVALID') state.batchSize = Math.max(1, Math.floor(prefix.length / 2));
+            state.nextAt = this.store.clock() + [60000, 300000, 1800000][Math.min(state.attempts - 1, 2)]!;
+            state.paused = state.attempts >= this.config.memory.maxAttempts;
+            state.reason = state.paused ? 'SUMMARY_ATTEMPTS_EXHAUSTED' : code; persist();
+            this.log({ event: state.paused ? 'memory_extract_paused' : 'memory_extract_failed', route: hash(session.key).slice(0, 12),
+              code: state.reason, cause: code, attempts: state.attempts, nextAt: state.nextAt });
+          }
         })
         .finally(() => this.active.delete(activeKey));
       this.active.set(activeKey, { controller, task, sender: '', autonomous: true }); return;

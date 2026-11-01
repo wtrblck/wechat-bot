@@ -14,7 +14,7 @@ try {
   if(rest.length>1||rest.some(a=>a.startsWith('--'))||demo&&rest.length)throw Error('invalid_arguments');
   const fixture=demo?createAdminDemo():undefined;
   const config=fixture?.config??loadConfig(resolve(rest[0]??process.env.WECHAT_AGENT_CONFIG??resolve(root,'config/agent.local.yaml')));
-  const {server}=createAdminServer(config,{staticRoot:resolve(root,'admin-ui'),services:demo?undefined:new LocalServiceControl(config.root)});
+  const {server}=createAdminServer(config,{staticRoot:resolve(root,'admin-ui'),services:demo?undefined:new LocalServiceControl(config.root),shutdown:()=>close()});
   let closing=false;
   const close=()=>{if(closing)return;closing=true;server.close(()=>{fixture?.cleanup();});server.closeIdleConnections();};
   server.on('error',()=>{console.error('管理服务无法监听，请检查端口。');fixture?.cleanup();process.exitCode=1;});

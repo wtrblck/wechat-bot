@@ -87,6 +87,12 @@ export class Memory {
         start.position, end.position, startTime, endTime, parsed.title, JSON.stringify(parsed.tags), parsed.summary, path, this.store.clock());
       this.store.exec(`INSERT INTO summary_checkpoints VALUES(?,?,?) ON CONFLICT(route) DO UPDATE SET
         position=excluded.position,completed=excluded.completed`, session.key, end.position, this.store.clock());
+      // Publication and retry-state cleanup share the coverage transaction. A crash
+      // after commit must not leave an already-published run pinned forever.
+      const retryKey = 'summary_retry_v3:' + session.key;
+      const retry = this.store.one('SELECT value FROM metadata WHERE key=?', retryKey)?.value;
+      if (retry && JSON.parse(retry).start === start.position) this.store.exec('DELETE FROM metadata WHERE key=?', retryKey);
+      this.store.exec('DELETE FROM metadata WHERE key=?', 'summary_retry:' + session.key);
     });
     return id;
   }

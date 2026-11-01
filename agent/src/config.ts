@@ -80,7 +80,7 @@ export const ConfigSchema = z.strictObject({
   }).default({ fetch: true, search: true, timeoutMs: 15000, maxResponseBytes: 1048576, maxOutputChars: 12000, maxResults: 5 }),
   memory: z.strictObject({ enabled: z.boolean().default(true), batchMessages: int(2, 100, 100), idleSeconds: int(1, 600, 180),
     intervalSeconds: int(60, 3600, 600), lowTrafficSeconds: int(60, 86400, 1800), minMessages: int(1, 100, 10),
-    priorityMessages: int(100, 200, 150), maxCallsPerHour: int(1, 120, 60),
+    priorityMessages: int(100, 200, 150), maxCallsPerHour: int(1, 120, 60), maxAttempts: int(1, 10, 4),
     summaryMaxChars: int(200, 1000, 1000), inputBytes: int(8192, 262144, 65536),
     retrieval: z.strictObject({ pageSize: int(1, 6, 3), maxSegments: int(1, 30, 12),
       maxHistoryBatches: int(1, 8, 4), historyBatchSize: int(1, 50, 20),

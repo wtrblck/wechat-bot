@@ -62,6 +62,47 @@ export class AdminReadModel {
       budget: { ...budget, reason: code(budget.reason), pricingVersion: safeText(budget.pricingVersion, 120) || null },
       trace: { enabled: !!since, since, note: since ? '仅记录启用后的链路；历史缺失阶段不推测。' : '尚无链路埋点；需下次人工启动新版bot后记录。' } };
   }
+  private memorySource() {
+    return this.has('session_map') ? 'memory_segments m LEFT JOIN session_map s ON s.key=m.route' : 'memory_segments m';
+  }
+  private memoryConversation() {
+    return this.has('session_map') ? 's.conversation,s.scope' : 'NULL conversation,NULL scope';
+  }
+  private memoryItem(row: Row) {
+    const tags = parse(row.tags);
+    return { id: row.id, route: row.route, conversationId: safeText(row.conversation,200) || null,
+      scope: row.scope === 'group' ? 'group' : row.scope === 'direct' ? 'direct' : 'unknown',
+      title: safeText(row.title,1000),
+      tags: Object.fromEntries(['topics','entities','states','aliases'].map(key => [key,
+        Array.isArray(tags?.[key]) ? tags[key].filter((v:unknown) => typeof v === 'string').slice(0,10).map((v:string) => safeText(v,200)) : []])),
+      startTime: row.start_time, endTime: row.end_time, createdAt: row.created };
+  }
+  memoryConversations() {
+    if (!this.has('memory_segments')) return { items: [] };
+    return { items: this.all(`SELECT DISTINCT m.route,${this.memoryConversation()} FROM ${this.memorySource()} ORDER BY conversation,m.route`)
+      .map(row => ({ route: row.route, conversationId: safeText(row.conversation,200) || null,
+        scope: row.scope === 'group' ? 'group' : row.scope === 'direct' ? 'direct' : 'unknown' })) };
+  }
+  memories(query: { q: string; route: string; limit: number; offset: number }) {
+    if (!this.has('memory_segments')) return { items: [], total: 0, limit: query.limit, offset: query.offset };
+    const conversation = this.has('session_map') ? "coalesce(s.conversation,'')" : "''";
+    const where = ` WHERE (?='' OR m.route=?) AND (?='' OR instr(lower(m.title),lower(?))>0
+      OR instr(lower(m.summary),lower(?))>0 OR instr(lower(m.tags),lower(?))>0
+      OR instr(lower(m.route),lower(?))>0 OR instr(lower(${conversation}),lower(?))>0)`;
+    const args = [query.route,query.route,query.q,query.q,query.q,query.q,query.q,query.q];
+    const source = this.memorySource();
+    const total = Number(this.one(`SELECT count(*) n FROM ${source}${where}`,...args)!.n);
+    const rows = this.all(`SELECT m.id,m.route,m.title,m.tags,substr(m.summary,1,240) preview,m.start_time,m.end_time,m.created,
+      ${this.memoryConversation()} FROM ${source}${where} ORDER BY m.end_time DESC,m.created DESC,m.id DESC LIMIT ? OFFSET ?`,
+      ...args,query.limit,query.offset);
+    return { items: rows.map(row => ({ ...this.memoryItem(row), preview: safeText(row.preview) })), total, limit: query.limit, offset: query.offset };
+  }
+  memoryDetail(id: string) {
+    if (!this.has('memory_segments')) return undefined;
+    const row = this.one(`SELECT m.id,m.route,m.title,m.tags,m.summary,m.start_time,m.end_time,m.created,m.start_position,m.end_position,
+      ${this.memoryConversation()} FROM ${this.memorySource()} WHERE m.id=?`,id);
+    return row ? { ...this.memoryItem(row), summary: safeText(row.summary), startPosition: row.start_position, endPosition: row.end_position } : undefined;
+  }
   private select() {
     const trace = this.has('trace_inbox');
     const outputWhere = `o.id IN (SELECT t.outbox_id FROM trace_outputs t WHERE t.inbox_id=i.id OR t.run_id IN (SELECT s.run_id FROM trace_sources s WHERE s.inbox_id=i.id))`;
