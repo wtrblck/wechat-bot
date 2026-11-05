@@ -117,7 +117,7 @@ test('later text replies retain prior sandbox attachment paths; pending or expir
     f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'contact-a', '/ai 刚才文件写了什么')] };
     await engine.tick(); await engine.drain();
     const input = host.calls.find(i => i.purpose === 'reply')!, context = JSON.parse(input.context);
-    assert.equal(context.recent.find((m: any) => m.messageId === 'contact-a:1').attachment.path, descriptor.path);
+    assert.equal(context.handover.recent.find((m: any) => m.messageId === 'contact-a:1').attachment.path, descriptor.path);
     assert.ok(!input.context.includes('先前的文件内容'));
     const tools = channelTools(engine, input, new AbortController().signal), read = tools.find(t => t.name === 'read_text_file')!;
     assert.equal((await read.execute({ path: descriptor.path }, {} as ToolRunContext) as any).text, '先前的文件内容');

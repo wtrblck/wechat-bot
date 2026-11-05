@@ -1,3 +1,4 @@
+import { conversationEnabled } from '../access.js';
 import { z } from 'zod';
 import { hash, type Message, type Session } from '../contracts.js';
 import type { Store } from '../storage/database.js';
@@ -63,7 +64,7 @@ export class SocialState {
     const p = this.store.config.social.proactive, now = this.store.clock();
     const cp = this.store.checkpoint();
     if (!this.store.config.social.enabled || !this.store.config.memory.enabled || !p.enabled || !p.contacts.includes(session.conversation) ||
-      !this.store.config.access.direct.allow.includes(session.conversation) || session.scope !== 'direct' || this.quiet() || cp.paused || cp.baseline ||
+      !conversationEnabled(this.store.config, session.conversation) || session.scope !== 'direct' || this.quiet() || cp.paused || cp.baseline ||
       job.route !== session.key || job.state !== 'pending' || job.due > now || now - job.due > 86400000 ||
       this.store.one('SELECT quiet FROM session_map WHERE key=?', session.key)?.quiet) return false;
     if (this.store.one('SELECT value FROM metadata WHERE key=?', 'care_off:' + session.key)?.value === '1' ||

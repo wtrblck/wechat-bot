@@ -1,0 +1,114 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import assert from 'node:assert/strict';
+
+const root=fileURLToPath(new URL('..',import.meta.url));
+const name=process.env.EXPERIMENT_NAME??'persistent-session-2026-11-05-live';
+const dir=resolve(root,'data/experiments',name);
+const load=name=>JSON.parse(readFileSync(resolve(dir,name),'utf8'));
+const lines=name=>readFileSync(resolve(dir,name),'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+const report=load('report.json'),plan=load('plan.json'),requests=lines('requests.jsonl'),turns=lines('turns.jsonl');
+assert.equal(report.complete,true,'Replay must complete before reporting results.');
+const audit=[];
+for(const group of plan.groups){
+  const req=requests.filter(r=>r.route===group.route),ts=turns.filter(t=>t.route===group.route&&t.status==='completed');
+  assert.equal(ts.length,group.batches.length);
+  assert.equal(new Set(ts.map(t=>t.batchId)).size,ts.length);
+  assert.ok(req.length>=ts.length,'Every completed batch must have a real request.');
+  assert.equal(new Set(req.map(r=>r.sessionId)).size,1);
+  assert.equal(req[0].sessionId,group.sessionId);
+  const messages=group.batches.flatMap(b=>b.messages);
+  assert.equal(new Set(messages.map(m=>m.messageId)).size,messages.length,'Inputs are incremental, no duplicate history.');
+  for(const [i,r]of req.entries()){
+    if(i===0)assert.equal(r.wireMessages,2);
+    else assert.ok(r.wireMessages>=req[i-1].wireMessages&&r.wireMessages<=req[i-1].wireMessages+2,'Growing conversation without truncation.');
+    assert.equal(r.systemMessages,1);assert.equal(r.tools,0);
+    assert.ok(['stop','error'].includes(r.finish.kind));
+    if(r.finish.kind==='stop')assert.ok(r.usage);
+  }
+  assert.ok(ts.every(t=>t.status==='completed'));
+  const window=rows=>({requests:rows.length,cny:rows.reduce((n,r)=>n+(r.costNanos??0),0)/1e9,
+    totalInput:rows.reduce((n,r)=>n+(r.usage?r.usage.inputTokens+r.usage.cacheReadTokens+(r.usage.cacheWriteTokens??0):0),0),
+    cached:rows.reduce((n,r)=>n+(r.usage?.cacheReadTokens??0),0)});
+  audit.push({label:group.label,checksPassed:true,inputMessages:messages.length,batches:ts.length,
+    firstWireMessages:req[0].wireMessages,lastWireMessages:req.at(-1).wireMessages,
+    firstTen:window(req.slice(0,10)),lastTen:window(req.slice(-10)),
+    invalidOutputs:ts.filter(t=>!t.validOutput).map(t=>({batchId:t.batchId,text:t.text})),
+    historicalStart:new Date(group.batches[0].messages[0].timestampMs).toISOString(),
+    historicalEnd:new Date(group.batches.at(-1).messages.at(-1).timestampMs).toISOString()});
+}
+const combine=key=>report.groups.reduce((a,g)=>{for(const[k,v]of Object.entries(g[key]))a[k]=(a[k]??0)+v;return a;},{});
+const baseline=combine('baselineFullChat'),memory=combine('baselineFullMemory'),candidate=combine('candidate');
+const noTools=combine('baselineFullChatWithoutToolRuns'),withTools=combine('baselineFullChatWithToolRuns');
+const saving=100*(1-candidate.normalizedCny/baseline.normalizedCny);
+const input=x=>x.uncachedInput+x.cachedInput;
+const pct=x=>(100*x).toFixed(2)+'%';
+const cny=x=>'¥'+x.toFixed(6);
+const number=x=>x.toLocaleString('en-US');
+const totals={baseline,memory,candidate,baselineWithoutToolRuns:noTools,baselineWithToolRuns:withTools,savingPercent:saving,
+  excludedMemorySavingPercent:100*(1-candidate.normalizedCny/(baseline.normalizedCny+memory.normalizedCny))};
+writeFileSync(resolve(dir,'audit.json'),JSON.stringify({checkedAt:new Date().toISOString(),groups:audit,totals},null,2)+'\n');
+const md=`# DSH 持续群聊会话额度对照实验
+
+测试日期：2026-11-05（Asia/Shanghai）。
+
+实验已完成：两个历史群、${audit.reduce((n,g)=>n+g.inputMessages,0)} 条入站消息、${plan.groups.reduce((n,g)=>n+g.batches.length,0)} 个处理批次，真实请求 ${requests.length} 次（含失败重试）。使用项目固定的 DSH ${report.dshVersion} 内核、官方模型适配器和现有凭据，模型为 ${report.model}，实际记录推理档位为 ${[...new Set(requests.map(r=>r.reasoningEffort))].join(', ')}。没有模拟模型，没有向微信发消息，也没有更改生产 bot 方案。
+
+**本轮纯文字回放的已知计费用量按统一价格换算，聊天处理由 ${cny(baseline.normalizedCny)} 降至 ${cny(candidate.normalizedCny)}，已知金额减少 ${saving.toFixed(2)}%。两侧均有缺失 usage 的失败请求，未知费用单列。这不是回复质量等价或只改变会话拓扑的因果结论。**
+
+| 范围 | 原方案聊天处理 | 持续会话 | 减少 |
+|---|---:|---:|---:|
+${report.groups.map(g=>`| ${g.label}（${g.replayedMessages}条/${g.completedBatches}批） | ${cny(g.baselineFullChat.normalizedCny)} | ${cny(g.candidate.normalizedCny)} | ${(100*(1-g.candidate.normalizedCny/g.baselineFullChat.normalizedCny)).toFixed(2)}% |`).join('\n')}
+| 合计 | ${cny(baseline.normalizedCny)} | ${cny(candidate.normalizedCny)} | ${saving.toFixed(2)}% |
+
+统一换算使用原账本的低谷价格：每百万 token 未缓存输入 1 元、缓存输入 0.02 元、输出 4 元。原账本实际时段价格下聊天处理记录为 ${cny(baseline.actualRateCny)}，实验本次实际时段换算为 ${cny(candidate.actualRateCny)}；不能直接把这个时段价格差异当成方案收益。费用是供应商 usage 乘项目费率，并非供应商账单核销。
+
+| 指标 | 原方案聊天处理 | 持续会话 |
+|---|---:|---:|
+| 实际模型请求数 | ${number(baseline.requests)} | ${number(candidate.requests)} |
+| 未缓存输入 token | ${number(baseline.uncachedInput)} | ${number(candidate.uncachedInput)} |
+| 缓存输入 token | ${number(baseline.cachedInput)} | ${number(candidate.cachedInput)} |
+| 全部输入 token | ${number(input(baseline))} | ${number(input(candidate))} |
+| 输出 token（含供应商计入的推理） | ${number(baseline.output)} | ${number(candidate.output)} |
+| 输入缓存命中占比 | ${pct(baseline.cachedInput/input(baseline))} | ${pct(candidate.cachedInput/input(candidate))} |
+| 缺失 usage 的请求 | ${baseline.missingUsage} | ${candidate.missingUsage} |
+
+原方案有 ${baseline.missingUsage} 个、新方案有 ${candidate.missingUsage} 个请求缺失 usage，没有按免费请求处理：上表仅汇总已记录用量，未知消耗没有编造；两侧金额是可核对的已知金额，节省率也是已知金额之间的比较。
+
+## 实验方式
+
+读取生产 SQLite 的一致性备份。按原参与判断记录的历史时点推进，每个时点只追加此前没有处理过的入站消息；合并没有新增消息的重复判断，不额外回放旧的格式修复或发送前复审。两个群各自使用一个固定 DSH session，群间隔离。全局提示词取该群最后留存的回复提示词中基础/人格/风格/参与部分，开始时冻结一次，再加入持续会话协议。未沿用旧的分阶段调度、记忆总结规则，也不逐轮热加载人格。
+
+每批在同一会话内自行判断，输出非空 messages 时记录回复，空数组表示沉默或等待。只把新增的发言人、消息 ID、时间、类型和文字交给 followup；旧 bot 发言不再注入，改由实验模型的回答构成 assistant 历史。没有总结、压缩、裁剪或独立参与判断调用。第一次验证后按官方 resume 接口恢复了群1同一个会话，随后继续追加，没有重发那两批。群1第105批连接失败后再次恢复同一 session，额外追加一次“继续处理上一批”的恢复指令，未重发群聊消息；其余网络重试通过 DSH 官方 request-error 接口完成（如有）。恢复和失败费用均保留。
+
+累计输入历史仍由 DSH 每轮提交给供应商，系统消息也仍作为请求前缀存在。审计确认两个群最后一轮分别有 ${audit.map(g=>g.lastWireMessages).join('、')} 条请求消息；“应用只追加新消息”不意味着供应商只收新消息的 token。主要观察结果是请求次数下降、可复用前缀稳定、缓存命中更高；上下文仍随历史累积。
+
+| 群 | 前10批费用 | 后10批费用 | 前10批全部输入 | 后10批全部输入 |
+|---|---:|---:|---:|---:|
+${audit.map(g=>`| ${g.label} | ${cny(g.firstTen.cny)} | ${cny(g.lastTen.cny)} | ${number(g.firstTen.totalInput)} | ${number(g.lastTen.totalInput)} |`).join('\n')}
+
+## 解释边界
+
+- 本轮是纯文字回放，没有工具可用。原方案包含工具调用：有工具的原回复执行内请求共 ${withTools.requests} 次，统一费用 ${cny(withTools.normalizedCny)}；其余原聊天请求 ${noTools.requests} 次、${cny(noTools.normalizedCny)}。这两部分仅用于解释成本构成，不能拿子集与全部新请求声称严格配对。未验证图片理解、搜索质量和发表情能力的成本等价。
+- 新方案在 ${turns.filter(t=>t.status==='completed'&&t.replyMessages>0).length}/${plan.groups.reduce((n,g)=>n+g.batches.length,0)} 批输出了可解析的非空回复；${turns.filter(t=>t.status==='completed'&&!t.validOutput).length} 个完成批次输出不符合 JSON 协议。另有 ${turns.filter(t=>t.status!=='completed').length} 次失败批次尝试，其后已恢复处理。保留了原始输出，没有额外调用模型修复格式，也没有因失败格式丢掉 token 费用。没有人工评定回复质量和参与准确率。
+- 人类发言来自固定历史，包含对旧 bot 回答的反应；实验 bot 的回答不同，人类后续发言没有跟着改变。未注入旧 bot 回答，避免让新模型重复看到两个版本，但会影响对历史接话的理解。
+- 原来的提示词、版本、工具可用性和运行条件曾随历史变化；新方案冻结一个初始版本。因此该对照回答的是这批历史上的实际回放消耗，不能推出“长期无总结也永远便宜”或同等回复效果。
+- 没有清空供应商缓存，也没有模拟原来的真实消息间隔；历史批次连续回放，可能更有利于前缀缓存。实际群聊长时间空闲后的缓存保留率需要单独观察。
+- 原后台记忆总结单列：${memory.requests} 次请求、统一费用 ${cny(memory.normalizedCny)}（原时段 ${cny(memory.actualRateCny)}，${memory.missingUsage} 次缺失 usage）。本实验按要求不做总结，此项没有混进主表聊天处理节省率。若连同原总结一起看，原总已知统一费用为 ${cny(baseline.normalizedCny+memory.normalizedCny)}，但其中取消总结本身带来的差额不能归为持续会话优化。
+
+## 复核材料
+
+实验目录：\
+${dir.replaceAll('\\','/')}
+
+- report.json：分群费用与 token 汇总。
+- audit.json：总计、输入去重、每群唯一 session、历史持续增长和完整批次检查。
+- requests.jsonl：每次真实调用的 usage、价格、请求消息数、哈希和结束原因。
+- turns.jsonl：逐批输入标识、回复与格式合规记录。
+- sessions/：真实 DSH 持久化执行日志，可复核累计历史。
+- plan.json、source.sqlite：冻结回放方案与原账本快照，含私人聊天，仅保存在本地。
+
+脚本：agent/scripts/session-cost-experiment.mjs 与 session-cost-experiment-report.mjs。run 支持恢复同一 session；已发起实验禁止 prepare 覆盖计划。默认实验费用保护上限为 5 元，独立记录，不写入生产消费账本。早期受限网络失败探测保存在另一个目录 persistent-session-2026-11-05，未混入本次成功实验。
+`;
+const result=resolve(root,'SESSION_COST_EXPERIMENT.md');writeFileSync(result,md);console.log(JSON.stringify({report:result,totals,audit:audit.map(g=>({label:g.label,checksPassed:g.checksPassed}))},null,2));

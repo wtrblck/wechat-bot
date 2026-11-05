@@ -1,3 +1,4 @@
+import { conversationEnabled } from '../access.js';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve, basename } from 'node:path';
@@ -120,7 +121,11 @@ export class Store {
         const m = normalize(raw, this.config);
         let reason = m ? ignoreReason(m, this.config, this.clock()) : 'invalid_structure';
         if (!reason && cp.baseline) reason = 'baseline';
-        const authorized = m && (m.scope === 'group' ? this.config.access.group.allow : this.config.access.direct.allow).includes(m.conversationId);
+        // An explicit operator reset must not repopulate old context from bridge backlog or self echoes.
+        const resetAt = Number(this.one("SELECT value FROM metadata WHERE key='context_reset_at'")?.value ?? 0);
+        const beforeReset = m && m.timestampMs < resetAt;
+        if (beforeReset) reason = 'before_context_reset';
+        const authorized = m && !beforeReset && conversationEnabled(this.config, m.conversationId);
         if (!reason && m?.scope === 'direct' && !m.text.startsWith('/bot ')) {
           const trigger = conversationConfig(this.config, 'direct', m.conversationId)?.directTrigger ?? this.config.access.direct.trigger;
           if (trigger === 'all' || m.text.startsWith(this.config.access.prefix)) {
@@ -191,7 +196,7 @@ export class Store {
       scope: conversation.endsWith('@chatroom') ? 'group' : 'direct', direction: 'outgoing', kind: row.kind,
       text, timestampMs: row.created }, row.id);
   }
-  timeline(route: string, limit: number = this.config.runtime.recentMessages) {
+  timeline(route: string, limit = 200) {
     return this.all('SELECT position,payload FROM chat_history WHERE route=? ORDER BY position DESC LIMIT ?', route, limit)
       .reverse().map(r => ({ position: Number(r.position), message: JSON.parse(r.payload) as Message }));
   }

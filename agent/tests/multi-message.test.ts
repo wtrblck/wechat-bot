@@ -7,25 +7,18 @@ import { Engine } from '../src/engine.js';
 import { normalize } from '../src/ingress/normalizer.js';
 import { config, event, now, FakeBridge, FakeHost } from './helpers.js';
 
-test('multi-message decoding rejects empty/invalid envelopes without leaking protocol text, plain output remains compatible', () => {
-  assert.deepEqual(decodeReply('普通回复'), { text: '普通回复' });
-  assert.deepEqual(decodeReply('```json\n{"messages":["第一条","第二条"]}\n```'), { text: '第一条\n\n第二条', messages: ['第一条', '第二条'] });
-  for (const text of ['{"messages":[]}', '{"messages":[" "]}', '{"messages":[1]}', '{"messages":',
-    JSON.stringify({ messages: Array(31).fill('多余') }), '{"messages":["正文"],"extra":"不可公开"}']) assert.equal(decodeReply(text), undefined);
-});
-
-test('real-model plain line breaks become distinct bubbles, while explicit multiline content and code keep their boundaries', () => {
-  const real = '孩子们，复活了，刚才被鞭子抽得有点 out\nwhat can i say，牢大这东西，抽不没的';
-  assert.deepEqual(decodeReply(real)?.messages, real.split('\n'));
-  assert.deepEqual(decodeReply('第一条\r\n\r\n第二条')?.messages, ['第一条', '第二条']);
-  assert.deepEqual(decodeReply(JSON.stringify({ messages: ['一条内\n换行'] }))?.messages, ['一条内\n换行']);
-  for (const text of ['```js\nconst x = 1;\nconsole.log(x);\n```', '1. 第一项\n2. 第二项', '- 一\n- 二', '> 引文\n> 第二行'])
-    assert.deepEqual(decodeReply(text), { text });
+test('newlines are the only final reply framing; silence never creates a message', () => {
+  assert.deepEqual(decodeReply('普通回复'), { text: '普通回复', messages: ['普通回复'] });
+  assert.deepEqual(decodeReply('第一条\r\n\r\n第二条').messages, ['第一条', '第二条']);
+  assert.deepEqual(decodeReply('  [SILENT] \n').messages, []);
+  assert.deepEqual(decodeReply('一句话\n[SILENT]\n补充').messages, ['一句话', '补充']);
+  assert.deepEqual(decodeReply('1. 第一项\n2. 第二项').messages, ['1. 第一项', '2. 第二项']);
+  assert.deepEqual(decodeReply('{"messages":["旧格式"]}').messages, ['{"messages":["旧格式"]}']);
 });
 
 test('30-message boundaries survive decoding and sending; pacing follows length and persists across restart', async () => {
   const messages = ['短', '长'.repeat(25), '👨‍👩‍👧‍👦'.repeat(50), ...Array(27).fill('继续')];
-  assert.deepEqual(decodeReply(JSON.stringify({ messages }))?.messages, messages);
+  assert.deepEqual(decodeReply(messages.join("\n"))?.messages, messages);
   assert.deepEqual(decodeReply(messages.join('\n'))?.messages, messages);
   assert.equal(messageInterval(''), 500);
   assert.equal(messageInterval('👨‍👩‍👧‍👦'), 510);
@@ -101,7 +94,7 @@ test('engine preserves intended boundaries and enqueues a multi-message reply at
     store.ingest({ events: [], cursor: 0, truncated: false });
     bridge.page = { events: [event(1)], cursor: 1, truncated: false };
     await engine.tick(); await engine.drain(); await engine.outbox.tick();
-    assert.equal(host.calls[0]!.replyFormat, 'messages-v1');
+    assert.equal(host.calls[0]!.replyFormat, 'lines-v1');
     assert.deepEqual(bridge.posts.map(p => JSON.parse(p).text), ['一', '二']);
     const session = store.session(normalize(event(1), c)!);
     assert.throws(() => store.prepareMessages(session, 'oversize-batch', Array(31).fill('过多')), /reply_requires_artifact/);

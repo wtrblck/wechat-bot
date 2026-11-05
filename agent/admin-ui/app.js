@@ -5,6 +5,7 @@
   const PAGE_SIZE = 50;
   const state = {
     view: 'messages', messages: [], total: 0, offset: 0, query: '', status: '',
+    access: null, accessSaving: false,
     selectedId: null, detail: null, detailFingerprint: '', overview: null, overviewFingerprint: '', queryPending: false,
     stickers: [], stickerTotal: 0, stickerOffset: 0, stickerQuery: '', stickerFingerprint: '',
     requests: new Map(), failures: new Map(), loaded: new Set(), lastSuccess: null,
@@ -697,8 +698,8 @@
   }
   function changeView(view) {
     state.view = view;
-    const names = { messages: ['消息观察台', '消息'], memories: ['已总结记忆', '记忆'], stickers: ['本地表情库', '表情'] };
-    const channels = { messages: ['messages','detail'], memories: ['memories','memory-detail','memory-conversations'], stickers: ['stickers'] };
+    const names = { messages: ['消息观察台', '消息'], memories: ['已总结记忆', '记忆'], stickers: ['本地表情库', '表情'], access: ['会话权限', '会话'] };
+    const channels = { messages: ['messages','detail'], memories: ['memories','memory-detail','memory-conversations'], stickers: ['stickers'], access: ['access'] };
     Object.keys(names).forEach((key) => {
       $(`${key}-view`).hidden = key !== view;
       const nav = $(`nav-${key}`); nav.classList.toggle('active', key === view);
@@ -706,11 +707,12 @@
       else { nav.removeAttribute('aria-current'); channels[key].forEach((channel) => { cancel(channel); state.failures.delete(channel); }); }
     });
     $('page-title').textContent = names[view][0];
-    document.querySelector('.skip-link').href = `#${view === 'messages' ? 'message' : view === 'memories' ? 'memory' : 'sticker'}-search`;
+    document.querySelector('.skip-link').href = `#${view === 'messages' ? 'message' : view === 'memories' ? 'memory' : view === 'access' ? 'access' : 'sticker'}-search`;
     document.querySelector('.skip-link').textContent = `跳到${names[view][1]}搜索`;
-    document.querySelector('.workspace-footer > span').textContent = `${names[view][1]}记录 · 只读`;
+    document.querySelector('.workspace-footer > span').textContent = view === 'access' ? '会话权限 · 可编辑' : `${names[view][1]}记录 · 只读`;
     if (view === 'messages') { loadMessages(); if (state.selectedId) loadDetail(); }
     else if (view === 'memories') { loadMemoryConversations(); loadMemories(); if (state.memoryId) loadMemoryDetail(); }
+    else if (view === 'access') loadAccess();
     else { loadStickers(); processThumbnails(); }
     renderConnection(); schedulePoll();
   }
@@ -728,9 +730,63 @@
     } finally { state.polling = false; schedulePoll(); }
   }
   function refresh() {
+    if (state.view === 'access') loadAccess();
     if (state.view === 'stickers') loadStickers();
     poll(); $('announcement').textContent = '正在刷新本地记录。';
   }
+  async function loadAccess() {
+    if (state.accessSaving) return;
+    $('access-list').setAttribute('aria-busy', 'true');
+    try {
+      const data = await getJSON('access', '/api/access');
+      if (data) { state.access = data; renderAccess(); }
+    } catch (_) { $('access-status').textContent = '权限读取失败，请刷新后重试。'; }
+    finally { $('access-list').setAttribute('aria-busy', 'false'); }
+  }
+  function renderAccess() {
+    const q = $('access-search').value.trim().toLowerCase(), scope = $('access-scope').value;
+    const rows = array(state.access?.items).filter(item => (!scope || item.scope === scope) && item.conversation.toLowerCase().includes(q)).map(item => {
+      const row = el('form', 'access-row');
+      const title = el('div', 'access-identity'); title.append(el('strong', '', item.scope === 'group' ? '群聊' : '联系人'), el('p', 'small muted', item.conversation));
+      const enabledLabel = el('label', 'access-switch'), enabled = el('input'); enabled.type = 'checkbox'; enabled.checked = item.enabled;
+      enabled.setAttribute('aria-label', `对 ${item.conversation} 开启 Bot`); enabledLabel.append(enabled, document.createTextNode('开启 Bot'));
+      const filesLabel = el('label', 'access-files', '读写范围 '), files = el('select');
+      files.setAttribute('aria-label', `${item.conversation} 的读写范围`);
+      files.append(new Option('仅沙箱', 'sandbox'), new Option('任意路径', 'any'));
+      if (state.access.approvalEnabled) files.append(new Option('按任务确认', 'approval'));
+      files.value = item.files; filesLabel.append(files);
+      const save = el('button', 'button', '保存'); save.type = 'submit';
+      row.append(title, enabledLabel, filesLabel, save);
+      row.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (await saveAccess({ conversation: item.conversation, enabled: enabled.checked, files: files.value })) await loadAccess();
+      });
+      return row;
+    });
+    $('access-list').replaceChildren(...(rows.length ? rows : [el('p', 'quiet-note', '没有匹配的会话。可以输入会话 ID 添加。')]));
+  }
+  async function saveAccess(value) {
+    if (!state.access?.token || state.accessSaving) return false;
+    state.accessSaving = true;
+    document.querySelectorAll('#access-view button').forEach(button => { button.disabled = true; });
+    $('access-status').textContent = '正在保存…';
+    try {
+      const response = await fetch('/api/access', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Service-Token': state.access.token }, body: JSON.stringify(value), signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error('save_failed');
+      $('access-status').textContent = '已保存。后续消息、工具操作和未提交回复将使用新权限。';
+      return true;
+    } catch (_) { $('access-status').textContent = '保存失败或结果未确认，请刷新权限后核对。'; return false; }
+    finally { state.accessSaving = false; document.querySelectorAll('#access-view button').forEach(button => { button.disabled = false; }); }
+  }
+  $('nav-access').addEventListener('click', () => changeView('access'));
+  $('access-search').addEventListener('input', renderAccess);
+  $('access-scope').addEventListener('change', renderAccess);
+  $('access-add').addEventListener('submit', async event => {
+    event.preventDefault();
+    const conversation = $('access-id').value.trim();
+    if (array(state.access?.items).some(item => item.conversation === conversation)) { $('access-status').textContent = '该会话已在列表中。'; return; }
+    if (await saveAccess({ conversation, enabled: false, files: 'sandbox' })) { $('access-id').value = ''; await loadAccess(); }
+  });
   $('nav-messages').addEventListener('click', () => changeView('messages'));
   $('nav-memories').addEventListener('click', () => changeView('memories'));
   $('memory-search').addEventListener('input', () => {

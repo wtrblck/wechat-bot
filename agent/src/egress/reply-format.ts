@@ -1,28 +1,11 @@
-/** Explicit final-output envelope; legacy executions without this protocol remain untouched on recovery. */
-export const replyFormatInstruction = '\n最终回复的整个输出必须是一个可完整解析的JSON对象，且顶层只能有messages这一个字段，格式为{"messages":["第一条微信消息","可选的第二条"]}。' +
-  '一次回复只能创建一个顶层对象和一个messages数组。开场、正文、可复制话术、链接及补充说明都按顺序放入同一个数组；不要每写完一段就关闭对象再输出另一个对象。' +
-  '禁止连续或换行输出多个JSON对象，禁止JSON对象之外的普通文字、解释、标题和代码围栏。' +
-  '每个数组元素会成为单独一条微信消息。按语意决定一条或多条，最多30条，不为凑条数拆分，不添加无意义的空消息。' +
-  'JSON只是内部传输格式，用户只看到数组中的文字；消息内的换行使用JSON转义。调用工具时正常调用工具，不把工具调用放入messages。' +
-  '合并示例：{"messages":["开场说明","正文内容","补充说明"]}，不是三个分别包含messages的对象。示例仅说明结构，不照抄内容。' +
-  '输出前自行检查：整个输出只有一个顶层对象；所有消息都在同一个数组中；每项是非空字符串；引号、反斜杠和换行已正确转义。只输出最终对象，不输出检查过程。';
+/** A reserved standalone control token is never a public message. */
+export const SILENT_REPLY = '[SILENT]';
+export const replyFormatInstruction = '\n【微信回复协议】直接输出要发到微信的普通文本，不使用JSON包装。每个非空行是一条独立微信消息，空行忽略。' +
+  '通常一条就够，不为凑条数拆句。旁听、等待补充或没有适合说的话时，整个输出只能是[SILENT]，不发送潜水等占位话。' +
+  '不要把[SILENT]与公开回复混用。代码、诗歌、列表等必须保留内部换行的内容，通过send_text作为一条完整消息发送，或创建文件后发送；普通最终输出中的换行总是分条。' +
+  '工具调用走真实工具通道，不输出工具调用文本；工具已经表达完毕且无需补充时输出[SILENT]。';
 
-function plainReply(text: string): { text: string; messages?: string[] } {
-  // Real model output may use line breaks instead of the requested envelope.
-  // Preserve multiline code, lists, quotations and tables as one message.
-  if (/```|^\s*(?:[-*+]\s|\d+[.)、]\s*|>|\|)/m.test(text)) return { text };
-  const messages = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  return messages.length > 1 && messages.length <= 30 ? { text: messages.join('\n\n'), messages } : { text };
-}
-
-export function decodeReply(text: string): { text: string; messages?: string[] } | undefined {
-  const raw = text.replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i, '$1').trim();
-  let value;
-  try { value = JSON.parse(raw); }
-  catch { return /^\{\s*"messages"\s*:/.test(raw) ? undefined : plainReply(text); }
-  if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.hasOwn(value, 'messages')) return { text };
-  if (Object.keys(value).length !== 1 || !Array.isArray(value.messages) || value.messages.length < 1 || value.messages.length > 30 ||
-      value.messages.some((m: unknown) => typeof m !== 'string' || !m.trim())) return;
-  const messages = value.messages.map((m: string) => m.trim());
-  return { text: messages.join('\n\n'), messages };
+export function decodeReply(text: string): { text: string; messages: string[] } {
+  const messages = text.split(/\r\n?|\n/).map(line => line.trim()).filter(line => line && line !== SILENT_REPLY);
+  return { text: messages.join('\n'), messages };
 }

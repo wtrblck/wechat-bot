@@ -19,8 +19,18 @@ export class Interactions {
       return true;
     });
   }
+  settleCurrentApproval(session: Session, sender: string, answer: 'allow' | 'deny') {
+    // Only the single active, submitted prompt can be answered without an ID.
+    // Queued requests cannot steal an answer intended for the displayed task.
+    const rows = this.store.all(`SELECT i.id FROM interactions i WHERE i.route=? AND i.generation=? AND i.sender=?
+      AND i.kind='approval' AND i.state='pending' AND i.expires>?
+      AND EXISTS(SELECT 1 FROM outbox o WHERE o.reply='command:external-approval:'||i.id AND o.submitted=1
+        AND o.state IN ('local_accepted','message_recorded','server_confirmed'))`, session.key, session.generation, sender, this.store.clock());
+    return rows.length === 1 && this.settle(session, sender, rows[0]!.id, answer, 'approval');
+  }
   invalidate(route?: string) {
-    if (route) this.store.exec("UPDATE interactions SET state='invalidated' WHERE (route=? OR json_extract(payload,'$.originRoute')=?) AND state='pending'", route, route);
-    else this.store.exec("UPDATE interactions SET state='invalidated' WHERE state='pending'");
+    const live = "(state IN ('pending','queued','answered') OR state='consumed' AND json_extract(payload,'$.scope')='task')";
+    if (route) this.store.exec(`UPDATE interactions SET state='invalidated' WHERE (route=? OR json_extract(payload,'$.originRoute')=?) AND ${live}`, route, route);
+    else this.store.exec(`UPDATE interactions SET state='invalidated' WHERE ${live}`);
   }
 }

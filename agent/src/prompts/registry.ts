@@ -11,8 +11,7 @@ import { replyFormatInstruction } from '../egress/reply-format.js';
 const defaults: Record<string, string | null> = {
   system: 'prompts/base.md', persona: 'prompts/personas/default.md', groupScene: 'prompts/group.md',
   directScene: 'prompts/direct.md', responseStyle: 'prompts/styles/default.md', participation: 'prompts/participation/helpful.md',
-  replyDecision: 'prompts/reply-decision.md', toolBehavior: 'prompts/tools/default.md',
-  memoryExtract: 'prompts/memory/extract.md', memoryConsolidate: 'prompts/memory/consolidate.md', sessionCompact: 'prompts/compact/default.md',
+  toolBehavior: 'prompts/tools/default.md', sessionCompact: 'prompts/compact/default.md',
 };
 export class PromptRegistry {
   private sources = new Map<string, string>();
@@ -74,8 +73,8 @@ export class PromptRegistry {
     try { this.validateAll(); this.reloadError = null; }
     catch { if (!this.sources.size) throw Error('no_valid_prompt_version'); this.reloadError = 'prompt_reload_rejected'; }
     const effective = this.effective(session);
-    const types = purpose === 'decision' ? ['replyDecision', 'participation'] : purpose === 'memory' ?
-      ['memoryExtract', 'memoryConsolidate'] : ['system', 'persona', session.scope === 'group' ? 'groupScene' : 'directScene', 'responseStyle', 'participation', 'toolBehavior'];
+    const types = purpose === 'decision' ? ['participation'] : purpose === 'memory' ?
+      ['sessionCompact'] : ['system', 'persona', session.scope === 'group' ? 'groupScene' : 'directScene', 'responseStyle', 'participation', 'toolBehavior'];
     const active = purpose === 'reply' && store ? activeSelfProfile(store) : undefined;
     const sections = types.filter(t => effective[t] !== null || t === 'persona' && active?.persona !== null && active?.persona !== undefined).map(type => {
       const override = type === 'persona' ? active?.persona : type === 'responseStyle' ? active?.responseStyle : null;

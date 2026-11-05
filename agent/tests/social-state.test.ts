@@ -8,7 +8,6 @@ import { Store } from '../src/storage/database.js';
 import { Engine } from '../src/engine.js';
 import { SocialState } from '../src/memory/social-state.js';
 import { normalize } from '../src/ingress/normalizer.js';
-import { parseDecision } from '../src/participation/decision.js';
 import { channelTools } from '../src/tools/channel-tools.js';
 import type { HostInput } from '../src/contracts.js';
 import { config, event, FakeBridge, FakeHost, agentRoot } from './helpers.js';
@@ -17,7 +16,7 @@ function fixture(proactive = false, persistent = false) {
   const root = mkdtempSync(join(tmpdir(), 'wechat-social-state-'));
   cpSync(join(agentRoot, 'prompts'), join(root, 'prompts'), { recursive: true });
   let time = Date.parse('2026-10-30T14:00:00+08:00');
-  const c = { ...config({ memory: { enabled: true, lowTrafficSeconds: 86400 },
+  const c = { ...config({ memory: { enabled: true },
     social: { proactive: { enabled: proactive, contacts: proactive ? ['contact-a'] : [] } } }), root };
   const file = persistent ? join(root, 'state.sqlite') : ':memory:';
   const store = new Store(c, file, () => time);
@@ -55,14 +54,6 @@ test('short-term tone is tied to speaker and topic, fades without repeat renewal
   } finally { await f.cleanup(); }
 });
 
-test('group tone evidence must belong to the selected real incoming speaker', () => {
-  const c = config(), m = normalize(event(1, 'group-a@chatroom'), c)!;
-  const decision = { action: 'reply', reason: '接话', sourceMessageIds: [m.messageId], topicId: '面试', replyToSenderId: m.senderId,
-    tone: { state: 'serious', sourceMessageId: m.messageId } };
-  assert.equal(parseDecision(JSON.stringify(decision), [m]).tone!.state, 'serious');
-  assert.throws(() => parseDecision(JSON.stringify({ ...decision, tone: { ...decision.tone, sourceMessageId: 'invented' } }), [m]), /tone_source_denied/);
-  assert.throws(() => parseDecision(JSON.stringify(decision), [{ ...m, direction: 'outgoing' }]), /tone_source_denied/);
-});
 
 test('natural care only consumes its cooldown when an actual reply is queued; updated same topic stays cooled', async () => {
   const f = fixture();

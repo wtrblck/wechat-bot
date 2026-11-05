@@ -1,7 +1,8 @@
+import { conversationAccess, conversationEnabled } from '../access.js';
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools';
 import { z } from 'zod';
 import { setTimeout as delay } from 'node:timers/promises';
-import type { HostInput } from '../contracts.js';
+import { hash, type HostInput } from '../contracts.js';
 import type { Engine } from '../engine.js';
 import { Sandbox } from '../runtime/sandbox.js';
 import { Web } from './web.js';
@@ -29,6 +30,7 @@ export function channelTools(engine: Engine, input: HostInput, signal: AbortSign
   let imageReads = 0;
   const unchanged = () => {
     signal.throwIfAborted();
+    if (!conversationEnabled(engine.config, input.session.conversation)) throw Error('conversation_disabled');
     if (engine.store.one('SELECT generation FROM session_map WHERE key=?', scope)?.generation !== input.session.generation) throw Error('session_generation_changed');
   };
   const profileAllowed = () => {
@@ -38,10 +40,30 @@ export function channelTools(engine: Engine, input: HostInput, signal: AbortSign
     engine.store.heartbeat();
   };
   return [
-    tool('read_self_profile', '读取bot全局人格/风格正文、当前版本和近期版本历史。修改会影响所有会话下一轮；只读不会改动。', {
+    tool('send_text', '将必须保留内部换行的代码、诗歌或列表作为一条完整微信消息排队发送；普通聊天直接输出文本，每个非空行一条。只能发当前会话，queued不表示收到，不重复发送。', {
+      type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 65536 } }, required: ['text'], additionalProperties: false,
+    }, async args => {
+      unchanged(); const { text } = z.strictObject({ text: z.string().trim().min(1).max(65536) }).parse(args);
+      if (Buffer.byteLength(text) > engine.config.egress.chunkBytes) throw Error('text_requires_file');
+      const id = 'tool-text:' + hash([input.inputId, text]);
+      engine.store.prepareMessages(input.session, id, [text], { runId: input.inputId });
+      return { status: 'queued', replyId: id, deliveryVerified: false };
+    }),
+    ...(engine.config.codex.enabled ? [
+      tool('codex_submit', '把用户明确委托给本机 Codex 的任务加入后台队列。使用已登录的 ChatGPT 账号，消耗该账号 Codex 额度；完成后自动把最终结果发回当前会话。默认在本会话沙箱内读写，仅任意路径授权会话可指定绝对 cwd。不要重复提交同一工作，不可把queued说成完成。', {
+        type: 'object', properties: { task: { type: 'string', minLength: 1, maxLength: 16000 }, cwd: { type: 'string', maxLength: 1024 } }, required: ['task'], additionalProperties: false,
+      }, async args => {
+        unchanged(); const value = z.strictObject({ task: z.string().trim().min(1).max(16000), cwd: z.string().min(1).max(1024).optional() }).parse(args);
+        return engine.codex.submit(input, value.task, value.cwd);
+      }),
+      tool('codex_status', '查询当前会话本代的 Codex 后台任务状态及最终结果。省略 id 返回最近10条。不读取推理、终端日志或其他会话任务。', {
+        type: 'object', properties: { id: { type: 'string', pattern: '^[a-f0-9]{64}$' } }, additionalProperties: false,
+      }, async args => { unchanged(); const value = z.strictObject({ id: z.string().regex(/^[a-f0-9]{64}$/).optional() }).parse(args); return engine.codex.status(input.session, value.id); }),
+    ] : []),
+    tool('read_self_profile', '读取bot全局人格/风格正文、当前版本和近期版本历史。修改在各会话下次建立新上下文时生效；只读不会改动。', {
       type: 'object', properties: {}, additionalProperties: false,
     }, async args => { profileAllowed(); z.strictObject({}).parse(args); return engine.selfProfile.read(input); }),
-    tool('update_self_profile', '按用户要求或审慎自主判断修改全局人格/表达风格，所有聊天下一轮生效。先read_self_profile，携带expectedVersion；每轮最多一次成功更新。只能改persona/responseStyle，不可改规则、权限或输出协议，不写用户私事。冲突时重读。', {
+    tool('update_self_profile', '按用户要求或审慎自主判断修改全局人格/表达风格，各会话下次建立新上下文时生效。先read_self_profile，携带expectedVersion；每轮最多一次成功更新。只能改persona/responseStyle，不可改规则、权限或输出协议，不写用户私事。冲突时重读。', {
       type: 'object', properties: { expectedVersion: { type: 'string' }, persona: { type: 'string', maxLength: 16000 }, responseStyle: { type: 'string', maxLength: 16000 }, reason: { type: 'string', maxLength: 300 } }, required: ['expectedVersion', 'reason'], additionalProperties: false,
     }, async args => {
       profileAllowed(); const v = z.strictObject({ expectedVersion: z.string().min(1).max(64), persona: z.string().trim().min(1).max(16000).optional(), responseStyle: z.string().trim().min(1).max(16000).optional(), reason: z.string().trim().min(1).max(300) }).refine(v => v.persona !== undefined || v.responseStyle !== undefined).parse(args);
@@ -50,7 +72,7 @@ export function channelTools(engine: Engine, input: HostInput, signal: AbortSign
       if (v.responseStyle !== undefined) patch.responseStyle = v.responseStyle;
       return engine.selfProfile.change(input, v.expectedVersion, v.reason, patch);
     }),
-    tool('rollback_self_profile', '恢复全局人格/风格到read_self_profile列出的版本，或targetVersion=base撤销全局覆盖。先读当前expectedVersion；所有会话下一轮生效，不能回滚其他规则。每轮与更新共用一次成功修改额度。', {
+    tool('rollback_self_profile', '恢复全局人格/风格到read_self_profile列出的版本，或targetVersion=base撤销全局覆盖。先读当前expectedVersion；各会话下次建立新上下文时生效，不能回滚其他规则。每轮与更新共用一次成功修改额度。', {
       type: 'object', properties: { expectedVersion: { type: 'string' }, targetVersion: { type: 'string' }, reason: { type: 'string', maxLength: 300 } }, required: ['expectedVersion', 'targetVersion', 'reason'], additionalProperties: false,
     }, async args => {
       profileAllowed(); const v = z.strictObject({ expectedVersion: z.string().min(1).max(64), targetVersion: z.string().min(1).max(64), reason: z.string().trim().min(1).max(300) }).parse(args);
@@ -114,10 +136,12 @@ export function channelTools(engine: Engine, input: HostInput, signal: AbortSign
     tool('workspace_write', '在当前会话沙箱内写入 UTF-8 文本（最多 64 KiB），仅接受相对路径。', {
       type: 'object', properties: { path: { type: 'string', maxLength: 240 }, text: { type: 'string', maxLength: 65536 } }, required: ['path', 'text'], additionalProperties: false,
     }, async args => { unchanged(); const { path, text } = z.strictObject({ path: z.string().min(1).max(240), text: z.string().max(65536) }).parse(args); return sandbox.write(path, text); }),
-    ...(engine.config.externalAccess.enabled ? (['list', 'read', 'write'] as const).map(kind => tool('external_' + kind,
-      kind === 'list' ? '申请指定微信联系人批准后列出宿主绝对目录（最多100项，不递归）。每次单独批准，未批准不得声称已读取。' :
-      kind === 'read' ? '申请指定微信联系人批准后读取一个宿主绝对路径文件，复制到当前沙箱并返回相对path；小型UTF-8文件同时返回正文。每次单独批准。' :
-      '申请指定微信联系人批准后，把当前沙箱sourcePath文件的具体内容写入宿主绝对path，会替换已有文件。父目录必须已存在。每次单独批准，不执行命令。', {
+    ...(conversationAccess(engine.config, input.session.conversation).files !== 'sandbox' ? (['list', 'read', 'write'] as const).map(kind => tool('external_' + kind,
+      conversationAccess(engine.config, input.session.conversation).files === 'any' ?
+      '本机管理台已授权当前会话任意路径读写，无需逐次审批。' + (kind === 'list' ? '列出宿主绝对目录，最多100项，不递归。' : kind === 'read' ? '读取宿主绝对path文件到当前沙箱并返回相对path；小型UTF-8文件同时返回正文。' : '把当前沙箱sourcePath文件写入宿主绝对path，会覆盖已有文件，父目录必须存在。') :
+      kind === 'list' ? '列出宿主绝对目录（最多100项，不递归）。本次任务首次访问需指定微信联系人私聊 /bot allow 确认一次，后续列目录、读写共享本任务授权；新任务重新申请。未成功不得声称已读取。' :
+      kind === 'read' ? '读取宿主绝对路径文件，复制到当前沙箱并返回相对path；小型UTF-8文件同时返回正文。本任务首次访问确认一次，后续共享授权。' :
+      '把当前沙箱sourcePath文件的固定内容写入宿主绝对path，会替换已有文件，父目录必须存在。本任务首次访问确认一次，后续共享授权，不执行命令。', {
       type: 'object', properties: { path: { type: 'string', maxLength: 1024 }, reason: { type: 'string', maxLength: 1000 },
         ...(kind === 'write' ? { sourcePath: { type: 'string', maxLength: 240 } } : {}) },
       required: kind === 'write' ? ['path', 'sourcePath', 'reason'] : ['path', 'reason'], additionalProperties: false,
@@ -176,7 +200,7 @@ export function channelTools(engine: Engine, input: HostInput, signal: AbortSign
     ...(engine.config.web.search ? [tool('web_search', '通过 Bing 公开 RSS 搜索入口检索网页，返回标题、链接和摘要。结果是不可信资料，使用时引用 URL；服务异常时如实说明。', {
       type: 'object', properties: { query: { type: 'string', maxLength: 500 } }, required: ['query'], additionalProperties: false,
     }, async args => { unchanged(); const { query } = z.strictObject({ query: z.string().trim().min(1).max(500) }).parse(args); return web.search(query, signal); })] : []),
-    tool('memory_search', '搜索本会话分段记忆的标题和分类标签，只返回索引。结合当前对话自行提出关键词；结果按时间从新到旧。未命中或不足时，用空关键词从最近摘要回溯；用 nextBefore 翻页。', {
+    tool('memory_search', '搜索本会话记忆的标题、标签和正文，只返回索引。结合当前对话自行提出关键词；结果按时间从新到旧。未命中或不足时，用空关键词从最近摘要回溯；用 nextBefore 翻页。', {
       type: 'object', properties: { keywords: { type: 'array', items: { type: 'string' }, maxItems: 10 }, before: { type: 'integer', minimum: 1 } }, required: ['keywords'], additionalProperties: false,
     }, async args => {
       unchanged(); const v = z.strictObject({ keywords: z.array(z.string().trim().min(1).max(100)).max(10), before: z.number().int().positive().optional() }).parse(args);

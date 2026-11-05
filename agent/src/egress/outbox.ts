@@ -1,3 +1,4 @@
+import { conversationEnabled } from '../access.js';
 import type { Bridge } from '../bridge/client.js';
 import { BridgeError } from '../bridge/client.js';
 import type { Store, Row } from '../storage/database.js';
@@ -43,6 +44,8 @@ export class Outbox {
       if (row.state === 'server_confirmed') continue;
       // A notice may flush only itself, never bypass older work or send unreviewed drafts.
       if (onlyReply && row.reply !== onlyReply) return;
+      const session = this.store.one('SELECT conversation FROM session_map WHERE key=?', route);
+      if (session && !conversationEnabled(this.store.config, session.conversation)) { await this.cancel(route); return; }
       try {
         const existing = await this.bridge.request(row.id);
         if (existing) this.update(row, existing);
@@ -60,6 +63,7 @@ export class Outbox {
           }
           // Shutdown or cancellation may occur while waiting. Never send the stale snapshot.
           if (this.stopping) return;
+          if (session && !conversationEnabled(this.store.config, session.conversation)) { await this.cancel(route); return; }
           const current = this.store.one('SELECT state,submitted FROM outbox WHERE id=?', row.id);
           if (!current || stopped.has(current.state)) continue;
           const text = row.kind === 'text' ? JSON.parse(row.body).text : '';

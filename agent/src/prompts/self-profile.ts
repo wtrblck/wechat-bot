@@ -58,7 +58,7 @@ export class SelfProfile {
       for (const session of sessions) this.registry.validateSelfProfile(session, this.store);
       this.store.exec('INSERT INTO self_profile_receipts VALUES(?,?)', input.inputId, version);
       this.store.exec('DELETE FROM self_profiles WHERE version NOT IN (SELECT version FROM self_profiles ORDER BY created DESC,rowid DESC LIMIT 50)');
-      return { status: 'updated', version, scope: 'global', effective: 'next_turn' };
+      return { status: 'updated', version, scope: 'global', effective: 'next_conversation_segment' };
     });
   }
 }

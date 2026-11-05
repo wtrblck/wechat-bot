@@ -11,35 +11,31 @@ access:
   prefix: '/ai '
   direct:
     allow: []
-    trigger: prefix
+    trigger: all
   group:
     allow: []
     trigger: autonomous
+codex:
+  enabled: false
+  executable: codex
+  home: data/codex-home
+  timeoutSeconds: 1800
+  maxConcurrent: 1
+  maxQueued: 10
 participation:
   debounceMs: 500
   maxBatchWaitMs: 2000
   cooldownSeconds: 2
   maxRepliesPerMinute: 8
-  maxDecisionsPerMinute: 30
 runtime:
   engine: dsh
   provider: REPLACE_WITH_CONFIGURED_PROVIDER
   model: REPLACE_WITH_CONFIGURED_MODEL
   preset: assistant
-  recentMessages: 200
+  turnTimeoutSeconds: 600
   chatContextBytes: 196608
 memory:
   enabled: true
-  batchMessages: 100
-  priorityMessages: 150
-  intervalSeconds: 600
-  idleSeconds: 180
-  lowTrafficSeconds: 1800
-  minMessages: 10
-  maxCallsPerHour: 60
-  maxAttempts: 4 # 每个覆盖起点/提取器版本的应用层尝试上限；SDK传输重试独立计费
-  summaryMaxChars: 1000
-  inputBytes: 65536
   retrieval:
     pageSize: 3
     maxSegments: 12
@@ -48,6 +44,15 @@ memory:
     timeoutMs: 15000
     maxBytes: 32768
     maxTokens: 8000
+sessions:
+  isolation: conversation
+  crossSessionMemory: false
+  fallbackContextTokens: 65536
+  rolloverRatio: 0.8
+  reserveTokens: 8192
+  recentMessages: 12
+  maxSummaryChars: 6000
+  summaryMaxAttempts: 4
 social:
   enabled: true
   toneMinutes: 30

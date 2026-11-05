@@ -96,12 +96,12 @@ test('runtime mechanisms remain in custom and tool-disabled snapshots with stage
     const registry = new PromptRegistry(f.c);
     const reply = registry.snapshot(f.session, 'reply', f.store);
     assert.ok(reply.sections.some(s => s.type === 'mechanisms' && s.source === 'runtime'));
-    for (const word of ['announce_work', 'previousWork', 'read_work_result', 'generation', 'server_confirmed', '/bot stop', '预算']) assert.ok(reply.system.includes(word));
+    for (const word of ['announce_work', 'read_work_result', '持续会话', 'server_confirmed', '/bot stop', '预算']) assert.ok(reply.system.includes(word));
     assert.ok(Buffer.byteLength(reply.system) < 32000);
     const decision = registry.snapshot(f.session, 'decision');
-    assert.ok(decision.system.includes('预告不代表问题已回答'));
+    assert.ok(decision.system.includes('不需要程序另开参与判断'));
     assert.ok(!decision.system.includes('先调用它发一句短预告'));
     const memory = registry.snapshot(f.session, 'memory');
-    assert.ok(memory.system.includes('无工具/发送权限')); assert.ok(!memory.system.includes('announce_work'));
+    assert.ok(memory.system.includes('context-summary'));
   } finally { await f.engine.close(); }
 });

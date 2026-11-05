@@ -1,0 +1,56 @@
+{
+  "version": "4.2.0.13",
+  "process": "Weixin.exe",
+  "module": "Weixin.dll",
+  "dll": "E:/Tencent/Weixin/4.2.0.13/Weixin.dll",
+  "sha256": "afe3d02c58bada3c35009c0cd58ee1f57b2a00fe53237d0dce649107fddb9a20",
+  "sites": {
+    "text_send_candidate": "0x5723550",
+    "send_stage_candidate_a": "0x183ffc0",
+    "sync_process_candidate": "0x2f95410",
+    "sync_database_candidate": "0x39900e0"
+  },
+  "send": {
+    "context": "0x47220",
+    "core": "0x384e40",
+    "manager": "0x71eb70",
+    "text_factory": "0x71ea50",
+    "send": "0x17db210",
+    "image": "0x2ccdc00",
+    "image_factory": "0x1db9d60",
+    "file_factory": "0x2cd1550",
+    "video_factory": "0x3083550",
+    "voice_factory": "0x6e55af0",
+    "string_destroy": "0x2010",
+    "narrow_assign": "0x1fe140",
+    "wide_assign": "0x9b5e0",
+    "thread_checkpoint": "0x4a87b0",
+    "emoji_factory": "0x1c47ac0",
+    "emoji_construct": "0x2138870",
+    "emoji_new": "0x76a750c",
+    "emoji_import": "0x6ace6e0",
+    "emoji_local_copy": "0x23a7610"
+  },
+  "download": {
+    "context": "0x47220",
+    "core": "0x384e40",
+    "manager": "0x71eb70",
+    "query": "0x17f1240",
+    "copy": "0xaae0b0",
+    "download": "0x184b360",
+    "conversation": "0xaaa810",
+    "thread_checkpoint": "0x4a87b0"
+  },
+  "emoji": {
+    "control_vtable": "0x91951d8",
+    "local_control_vtable": "0x954a798",
+    "local_resource_vtable": "0x954a698"
+  },
+  "download_result_vtable": "0x939b088",
+  "notes": "Pinned 4.2.0.13 ABI, mapped by archived bytes, call graph and native field inspection. Live no-send construction/cleanup passed for context, text, image, file, video, voice, favorite emoji and local GIF; see runs/version-4.2.0.13/native-build-validation.json. This does not assert delivery verification.",
+  "layout": {
+    "emoji_resource_allocation": 504,
+    "local_emoji_vtable_entries": 19
+  },
+  "codec_sha256": "4b508079eabaf04468a0c084441d51f3a7f79712678756af66dbde90fb75d007"
+}

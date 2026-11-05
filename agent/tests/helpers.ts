@@ -1,4 +1,7 @@
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { Config } from '../src/config.js';
 import { validateConfig } from '../src/config.js';
 import type { Bridge } from '../src/bridge/client.js';
@@ -10,7 +13,10 @@ export function config(extra: Record<string, unknown> = {}): Config {
   return validateConfig({ account: { key: 'test-account', selfId: 'self', bridgeEpoch: 'test-source' },
     bridge: { sessionFile: 'unused.json' }, access: { owners: ['owner'], direct: { allow: ['contact-a', 'contact-b'] }, group: { allow: ['group-a@chatroom', 'group-b@chatroom'] } },
     runtime: { provider: 'mock', model: 'test-model' }, memory: { enabled: false },
-    participation: { debounceMs: 0, maxBatchWaitMs: 100 }, ...extra }, agentRoot);
+    participation: { debounceMs: 0, maxBatchWaitMs: 100 }, ...extra,
+    // Tests must never inherit the live bot's saved permission overrides.
+    storage: { file: join(tmpdir(), `wechat-tests-${process.pid}`, randomUUID() + '.sqlite'), ...(extra.storage as Record<string, unknown> ?? {}) },
+  }, agentRoot);
 }
 export function event(sequence: number, conversation = 'contact-a', text = '/ai 你好', extra: Record<string, unknown> = {}) {
   return { sequence, message_id: `${conversation}:${sequence}`, conversation_id: conversation, sender: 'member-a',
@@ -52,7 +58,7 @@ export class FakeHost implements HostAdapter {
       const context = JSON.parse(input.context); const m = context.recent[context.recent.length - 1];
       text = JSON.stringify({ action: this.action, reason: 'unanswered_question', sourceMessageIds: [m.messageId], topicId: 'topic', replyToSenderId: m.senderId });
     }
-    const result: HostResult = { status: signal.aborted ? 'cancelled' : 'completed', replies: [{ id: input.executionId + ':reply', text }] };
+    const result: HostResult = { status: signal.aborted ? 'cancelled' : 'completed', replies: input.purpose === 'reply' && this.action !== 'reply' ? [] : [{ id: input.inputId + ':reply', text }] };
     this.records.set(input.inputId, result); return result;
   }
   async reconcile(input: HostInput) { return this.records.get(input.inputId); }

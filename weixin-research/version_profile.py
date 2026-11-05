@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DIRECTORY = ROOT / 'versions'
-DEFAULT_PROFILE = DIRECTORY / '4.1.15.56.json'
+DEFAULT_PROFILE = DIRECTORY / '4.2.0.13.json'
 REQUIRED = ('version', 'process', 'module', 'dll', 'sha256', 'sites', 'send', 'download',
             'emoji', 'download_result_vtable')
 

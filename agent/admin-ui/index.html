@@ -27,6 +27,7 @@
         <button class="nav-button" id="nav-stickers" data-testid="nav-stickers" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v10l-6 6H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M15 21v-4a2 2 0 0 1 2-2h4M8 13c2 2 6 2 8 0M8 8h.01M16 8h.01"/></svg><span>表情库</span>
         </button>
+        <button class="nav-button" id="nav-access" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3"/></svg><span>会话权限</span></button>
       </nav>
       <button class="nav-button source-toggle" id="source-toggle" data-testid="source-toggle" type="button" aria-controls="source-dialog">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 9h10M7 12h5"/></svg><span>本地服务</span>
@@ -77,6 +78,15 @@
         <div class="sticker-note small muted" id="sticker-note" role="status">正在读取本地表情目录…</div>
         <div class="sticker-grid" id="sticker-grid" data-testid="sticker-grid" aria-busy="true"></div>
         <footer class="sticker-footer"><span id="sticker-page-label" class="small muted"></span><div class="pager"><button id="sticker-previous" class="button button-quiet" type="button" disabled>上一页</button><button id="sticker-next" class="button button-quiet" type="button" disabled>下一页</button></div></footer>
+      </section>
+      <section class="access-view" id="access-view" aria-label="联系人与群聊权限" hidden>
+        <header><h2>联系人与群聊权限</h2><p class="muted">分别控制 Bot 是否响应，以及文件读写范围。保存后生效，无需重启 Bot。</p></header>
+        <p class="quiet-note">“仅沙箱”只允许当前会话的文件；“任意路径”允许读写本机文件，包括覆盖已有文件。启用 Codex 后，“任意路径”还允许完全权限执行本机命令和联网，无需逐次审批。已提交给微信的消息无法保证撤回。</p>
+        <div class="access-toolbar"><label class="search-field"><input id="access-search" type="search" placeholder="搜索联系人或群聊 ID" aria-label="搜索联系人或群聊 ID"></label><label>类型 <select id="access-scope"><option value="">全部</option><option value="direct">联系人</option><option value="group">群聊</option></select></label></div>
+        <form id="access-add" class="access-toolbar"><label>会话 ID <input id="access-id" required maxlength="128" placeholder="联系人 ID 或以 @chatroom 结尾的群 ID"></label><button class="button" type="submit">添加会话</button></form>
+        <p class="small muted">列表包含已配置和已记录的会话，也可手动添加 ID。新增会话默认关闭；开启前，微信桥接也须配置该会话的接收、观察及发送权限。</p>
+        <p id="access-status" role="status" aria-live="polite"></p>
+        <div id="access-list" class="access-list" aria-busy="false"></div>
       </section>
       <footer class="workspace-footer"><span>消息记录 · 只读</span><span id="trace-summary" data-testid="trace-summary">追踪状态读取中</span><button id="privacy-button" type="button">数据与隐私说明</button></footer>
     </main>

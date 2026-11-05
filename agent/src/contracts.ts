@@ -20,13 +20,14 @@ export interface Decision {
 }
 export interface HostInput {
   proactive?: boolean;
-  replyFormat?: 'messages-v1';
+  replyFormat?: 'lines-v1';
   inputId: string; executionId: string; session: Session; purpose: 'reply' | 'decision' | 'memory';
   system: string; context: string; provider: string; model: string;
   initiatorId?: string;
 }
 export interface CommittedReply { id: string; text: string; messages?: string[] }
-export interface HostResult { status: 'completed' | 'cancelled' | 'failed' | 'needs_review'; replies: CommittedReply[]; failureCode?: string }
+export interface HostResult { status: 'completed' | 'cancelled' | 'failed' | 'needs_review'; replies: CommittedReply[]; failureCode?: string;
+  contextUsage?: { inputTokens: number; outputTokens?: number; windowTokens?: number } }
 export interface WorkObservation {
   callId: string; name: string; state: 'started' | 'completed' | 'failed' | 'unknown'; arguments?: unknown; result?: unknown;
 }

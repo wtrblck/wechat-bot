@@ -15,10 +15,10 @@ import sys
 import wave
 import io
 from pathlib import Path
-from profile import ROOT, DLL
+from profile import ROOT, DLL, PROFILE
 
 CODEC_DLL = DLL.parent / 'VoipEngine.dll'
-CODEC_SHA256 = 'ec7cfdbc32842111be3287753832559c0403a79a3042a3a9ae57dd3908bc225c'
+CODEC_SHA256 = PROFILE.get('codec_sha256', 'ec7cfdbc32842111be3287753832559c0403a79a3042a3a9ae57dd3908bc225c')
 MAGIC = b'\x02#!SILK_V3'
 
 

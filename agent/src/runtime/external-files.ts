@@ -1,3 +1,4 @@
+import { conversationAccess, conversationEnabled } from '../access.js';
 import { constants, openSync, closeSync, fstatSync, readSync, readFileSync, lstatSync, realpathSync, readdirSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { isAbsolute, resolve, parse, join, dirname, basename } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
@@ -6,12 +7,28 @@ import { hash, type HostInput } from '../contracts.js';
 import type { Engine } from '../engine.js';
 import { Sandbox } from './sandbox.js';
 
-/** Explicit single-operation approval, never an ambient host-filesystem grant. */
+/** A human grants one live reply task; each operation still rechecks revocation and paths. */
 export class ExternalFiles {
+  private ambientGrant = false;
+  private taskGrant?: { id: string; route: string; generation: number; approver: string };
+  private pendingApproval?: Promise<string>;
   constructor(readonly engine: Engine, readonly input: HostInput, readonly signal: AbortSignal) {}
   private unchanged() {
     this.signal.throwIfAborted();
+    const policy = conversationAccess(this.engine.config, this.input.session.conversation);
+    if (!conversationEnabled(this.engine.config, this.input.session.conversation) || policy.files === 'sandbox' || this.ambientGrant && policy.files !== 'any') throw Error('external_access_denied');
     if (this.engine.store.one('SELECT generation FROM session_map WHERE key=?', this.input.session.key)?.generation !== this.input.session.generation) throw Error('session_generation_changed');
+    const run = this.engine.store.one('SELECT state FROM runs WHERE id=?', this.input.inputId);
+    if (run && run.state !== 'dispatching') throw Error('external_task_finished');
+    const cp = this.engine.store.checkpoint();
+    if (cp.paused || cp.baseline || this.engine.outbox.stopping || this.engine.budget.status().stopped) throw Error('external_task_stopped');
+    if (this.taskGrant && policy.files === 'approval') {
+      const grant = this.taskGrant;
+      if (!this.engine.config.externalAccess.enabled || this.engine.config.externalAccess.approver !== grant.approver ||
+          !conversationEnabled(this.engine.config, grant.approver) ||
+          this.engine.store.one('SELECT generation FROM session_map WHERE key=?', grant.route)?.generation !== grant.generation ||
+          this.engine.store.one('SELECT state FROM interactions WHERE id=?', grant.id)?.state !== 'consumed') throw Error('external_task_grant_revoked');
+    }
   }
   private target(path: string, allowRoot = false) {
     if (!isAbsolute(path) || path.length > 1024 || /[\x00-\x1f]/.test(path) || /^[/\\]{2}/.test(path)) throw Error('external_path_denied');
@@ -41,42 +58,75 @@ export class ExternalFiles {
   private async approve(operation: Record<string, unknown>, reason: string) {
     this.unchanged();
     const { store, config, interactions } = this.engine;
+    const policy = conversationAccess(config, this.input.session.conversation);
+    if (policy.files === 'any') {
+      this.ambientGrant = true;
+      const id = randomUUID();
+      this.audit(id, { status: 'authorized', authorization: 'conversation', operation });
+      return id;
+    }
+    if (this.taskGrant) return this.taskGrant.id;
+    this.pendingApproval ??= this.requestTaskApproval(operation, reason);
+    try { return await this.pendingApproval; } finally { this.pendingApproval = undefined; }
+  }
+  private async requestTaskApproval(operation: Record<string, unknown>, reason: string) {
+    const { store, config, interactions } = this.engine;
     const approver = config.externalAccess.approver;
     if (!config.externalAccess.enabled || !approver) throw Error('external_access_disabled');
+    if (!conversationEnabled(config, approver)) throw Error('external_approver_disabled');
     const contact = store.session({ accountKey: config.account.key, bridgeEpoch: config.account.bridgeEpoch,
       sequence: 0, messageId: 'approval-contact', conversationId: approver, senderId: approver,
       scope: 'direct', direction: 'incoming', kind: 'text', text: '', timestampMs: store.clock() });
-    const payload = { originRoute: this.input.session.key, originGeneration: this.input.session.generation,
+    const existing = store.one(`SELECT * FROM interactions WHERE kind='approval' AND json_extract(payload,'$.scope')='task'
+      AND json_extract(payload,'$.inputId')=? AND json_extract(payload,'$.originRoute')=?
+      AND json_extract(payload,'$.originGeneration')=? ORDER BY rowid DESC LIMIT 1`, this.input.inputId, this.input.session.key, this.input.session.generation);
+    const payload = existing ? JSON.parse(existing.payload) : { scope: 'task', originRoute: this.input.session.key, originGeneration: this.input.session.generation,
       inputId: this.input.inputId, operation, reason };
-    const id = interactions.create(contact, approver, 'approval', payload);
-    const expires = store.clock() + config.externalAccess.timeoutSeconds * 1000;
-    store.exec('UPDATE interactions SET expires=? WHERE id=?', expires, id);
-    const text = `沙箱外文件操作申请 ${id}\n来源：${this.input.session.scope} ${this.input.session.conversation}\n操作：${JSON.stringify(operation)}\n用途（模型说明）：${JSON.stringify(reason)}\n仅批准本次指定操作，写入会替换目标文件；不允许执行命令。请在${config.externalAccess.timeoutSeconds}秒内私聊回复 /bot allow ${id} 或 /bot deny ${id}。`;
-    store.prepareReply(contact, 'command:external-approval:' + id, text, { runId: this.input.inputId });
+    if (existing && (existing.route !== contact.key || existing.generation !== contact.generation || existing.sender !== approver)) throw Error('external_task_grant_revoked');
+    const id = existing?.id ?? interactions.create(contact, approver, 'approval', payload);
+    const waitMs = config.externalAccess.timeoutSeconds * 1000;
+    if (!existing) store.exec("UPDATE interactions SET state='queued',expires=? WHERE id=?", store.clock() + Math.max(300000, 2 * waitMs), id);
+    const text = `沙箱外文件任务授权申请\n来源：${this.input.session.scope} ${this.input.session.conversation}\n任务用途（模型说明）：${JSON.stringify(reason)}\n首个操作：${JSON.stringify(operation)}\n确认后，本次任务后续的列目录、读取和写入无需再次确认；写入可能覆盖文件，不含执行命令。任务结束、停止或重置后授权失效。请在收到申请后${config.externalAccess.timeoutSeconds}秒内私聊回复 /bot allow 确认，或 /bot deny 拒绝，不需要填写编号。`;
+    const release = this.engine.waitForApproval(this.input.inputId);
     try {
       while (true) {
         this.unchanged();
         if (store.one('SELECT generation FROM session_map WHERE key=?', contact.key)?.generation !== contact.generation) throw Error('external_approver_session_changed');
         const row = store.one('SELECT * FROM interactions WHERE id=?', id);
-        if (!row || row.expires <= store.clock()) throw Error('external_approval_expired');
-        if (row.state === 'answered' && row.answer === 'allow' && row.parameter_hash === hash(payload)) {
+        if (!row) throw Error('external_approval_expired');
+        if (!config.externalAccess.enabled || config.externalAccess.approver !== approver) throw Error('external_access_disabled');
+        if (!conversationEnabled(config, approver)) throw Error('external_approver_disabled');
+        if ((row.state === 'answered' && row.answer === 'allow' && row.expires > store.clock() || row.state === 'consumed') && row.parameter_hash === hash(payload)) {
           this.unchanged();
           store.exec("UPDATE interactions SET state='consumed' WHERE id=? AND state='answered' AND answer='allow'", id);
-          this.audit(id, { status: 'approved', operation });
+          this.taskGrant = { id, route: contact.key, generation: contact.generation, approver };
+          this.unchanged();
+          this.audit(id, { status: 'approved', scope: 'task', operation });
           return id;
         }
-        if (row.state !== 'pending') throw Error('external_approval_' + row.state);
+        if (row.expires <= store.clock()) throw Error('external_approval_expired');
+        if (row.state === 'queued') {
+          const earlier = store.one(`SELECT id FROM interactions WHERE route=? AND generation=? AND kind='approval'
+            AND state IN ('pending','queued','answered') AND expires>? AND rowid<(SELECT rowid FROM interactions WHERE id=?) LIMIT 1`,
+            contact.key, contact.generation, store.clock(), id);
+          if (!earlier) {
+            store.exec("UPDATE interactions SET state='pending',expires=? WHERE id=? AND state='queued'", store.clock() + waitMs, id);
+            store.prepareReply(contact, 'command:external-approval:' + id, text, { runId: this.input.inputId });
+          }
+        } else if (row.state !== 'pending') throw Error('external_approval_' + row.state);
         await delay(200, undefined, { signal: this.signal });
       }
     } finally {
-      store.exec("UPDATE interactions SET state='invalidated' WHERE id=? AND state IN ('pending','answered')", id);
+      release();
+      store.exec("UPDATE interactions SET state='invalidated' WHERE id=? AND state IN ('pending','queued','answered')", id);
       // Unsent permission prompts are no longer actionable after cancellation/expiry.
       store.exec("UPDATE outbox SET state='cancelled' WHERE reply=? AND submitted=0 AND state='prepared'", 'command:external-approval:' + id);
     }
   }
   private audit(id: string, result: Record<string, unknown>) {
-    this.engine.store.exec('INSERT OR REPLACE INTO metadata VALUES(?,?)', 'external_operation:' + id,
-      JSON.stringify({ at: this.engine.store.clock(), ...result }));
+    const value = JSON.stringify({ at: this.engine.store.clock(), inputId: this.input.inputId, originRoute: this.input.session.key, ...result });
+    this.engine.store.exec('INSERT OR REPLACE INTO metadata VALUES(?,?)', 'external_operation:' + id, value);
+    this.engine.store.exec('INSERT INTO metadata VALUES(?,?)', 'external_operation:' + id + ':' + randomUUID(), value);
   }
   async list(path: string, reason: string) {
     path = this.target(path, true);
@@ -106,7 +156,7 @@ export class ExternalFiles {
       bytes = bytes.subarray(0, offset);
     } finally { closeSync(fd); }
     const name = basename(path);
-    const rel = 'external/' + approvalId + '/' + name;
+    const rel = 'external/' + approvalId + '/' + randomUUID().slice(0, 12) + '/' + name;
     new Sandbox(this.engine.config.root, this.input.session.key).writeBytes(rel, bytes, maxBytes);
     let text: string | undefined;
     if (bytes.length <= 65536) { try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch {} }

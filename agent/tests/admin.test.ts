@@ -51,17 +51,17 @@ test('admin persists exact input -> run -> multiple output association, excludin
   } finally {await host.close();f.close();}
 });
 
-test('admin waiting/silent participation is attached by source IDs and never changes decision input to dispatching', async()=>{
+test('admin displays silence from the continuous reply turn without a separate decision', async()=>{
   const f=fixture(),host=new FakeHost(),engine=new Engine(f.c,f.store,new FakeBridge(),host,()=>{});
   try {
     host.action='wait';f.store.ingest({events:[event(1,'group-a@chatroom')],cursor:1,truncated:false});
     await engine.pump();await engine.drain();
     const waiting=f.model.messages(query).items[0]!;
-    assert.equal(waiting.status,'waiting');assert.equal(f.store.one('SELECT state FROM inbox')!.state,'pending');
-    assert.equal(f.model.detail(waiting.id)!.runs[0]!.purpose,'decision');
+    assert.equal(waiting.status,'silent');assert.equal(f.store.one('SELECT state FROM inbox')!.state,'completed');
+    assert.equal(f.model.detail(waiting.id)!.runs[0]!.purpose,'reply');
     host.action='silent';f.store.ingest({events:[event(2,'group-b@chatroom')],cursor:2,truncated:false});
     await engine.pump();await engine.drain();
-    assert.equal(f.model.messages({...query,status:'silent'}).total,1);
+    assert.equal(f.model.messages({...query,status:'silent'}).total,2);
   } finally {f.close();}
 });
 

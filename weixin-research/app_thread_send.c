@@ -4,6 +4,9 @@
  * so no probe buffer is retained by the asynchronous message. */
 #include <stdint.h>
 #include <gum/guminterceptor.h>
+#ifndef EMOJI_RESOURCE_ALLOCATION
+#define EMOJI_RESOURCE_ALLOCATION 0x1f0
+#endif
 extern int read_memory(void *, const void *, void *, uint64_t, uint64_t *);
 extern uint32_t get_thread_id(void);
 extern void *context_fn(void *);
@@ -164,7 +167,7 @@ void on_checkpoint_leave(GumInvocationContext *context) {
         /* Exact native make_shared layout from 0x6977344 -> 0x20A2800:
          * 0x1f0 allocation, native control vtable, strong/weak = 1, object +16.
          * The native constructor copies every borrowed database string. */
-        unsigned char *control = emoji_new_fn(0x1f0);
+        unsigned char *control = emoji_new_fn(EMOJI_RESOURCE_ALLOCATION);
         if (!control) { job.error = 10; goto cleanup; }
         *(void **)control = emoji_control_vtable;
         *(uint32_t *)(control + 8) = 1; *(uint32_t *)(control + 12) = 1;
@@ -245,6 +248,9 @@ void on_checkpoint_leave(GumInvocationContext *context) {
         wide_assign_fn(path_field, wide_path);
         *(uint64_t *)((unsigned char *)message[0] + 0x118) = job.kind == 2 ? 3 : job.kind == 4 ? 43 : 0x600000031ULL;
     }
+#ifdef WECHAT_BUILD_ONLY
+    job.phase = 6; goto cleanup;
+#endif
     void *transferred[2] = {message[0], message[1]};
     message[0] = message[1] = 0;
     job.phase = 5; send_fn(manager[0], job.result, transferred);

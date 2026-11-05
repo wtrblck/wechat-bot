@@ -34,7 +34,7 @@ test('global persona/style hot load on every route while old snapshots and fixed
       const next = f.engine.prompts.snapshot(s, 'reply', f.store);
       assert.ok(next.system.includes('你叫小海豚'));
       assert.ok(next.system.includes('表达温和清楚'));
-      assert.ok(next.system.includes('messages格式'));
+      assert.ok(next.system.includes('持续会话'));
       assert.ok(next.sections.find(s => s.type === 'mechanisms'));
       assert.ok(!old.system.includes('你叫小海豚'));
       assert.ok(!f.engine.prompts.snapshot(s, 'decision', f.store).system.includes('你叫小海豚'));

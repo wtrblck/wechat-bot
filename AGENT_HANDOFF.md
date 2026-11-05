@@ -1,5 +1,9 @@
 # wechat-bot 开发交接与后续工作清单
 
+**2026-11-05 微信升级适配并恢复启动：** 用户明确选择保留 4.2.0.13。默认 profile 已切为该版本，所有 native 地址重新定位，表情资源大小和虚表项数按新版调整，VoipEngine 指纹更新。实机无发送构造/释放验证覆盖文字、图片、文件、视频、语音、收藏表情、本地 GIF；正式桥接向 filehelper 一条文字获得 server_confirmed（filehelper:42）。bot 和桥接已启动且 ready，接收轮询零错误，发送和下载 worker 健康。此前文档中的“保持关闭”是历史状态，现已由用户启动修复请求取代。提示词未清空。详见 `weixin-research/VERSION_4.2.0.13.md`；媒体网络发送/下载和长稳尚未逐项回归。
+
+**2026-11-05 持续会话替换已完成：** 每群/联系人复用持久DSH execution session，仅追加新消息；参与策略开头设定，在同一会话内自主判断。移除独立参与判断、发送前复审、200条滑动注入、定时/条数后台总结和JSON messages包装。普通回复按非空行分条，[SILENT]不发送，send_text保留单条内部换行。接近80%模型容量、留8192 token余量后才在原会话整理记忆，原子保存后带记忆+最近12条原话切换新会话；失败有界退避、发布重用结果。逐输入定位DSH结果，工具/费用归属跨轮正确，官方resume可冷恢复。旧未提交JSON/决策任务升级取消、不回退；不确定已提交发送仍保留核对。完整离线187项通过，真实模型5次请求0.02230668元验证记忆、静默、交接、对账与计费。bot/桥接原本关闭，仍未启动或发送微信。详见agent/CONTINUOUS_SESSIONS.md；本条优先于下述旧交接说明。
+
 **2026-10-30 图片/文本附件接入：** 用户要求已实现：鉴权桥接获取原始字节并核对大小/SHA256，复制到逐会话sandbox/media的真实类型扩展名文件，消息上下文保存相对path和资源描述，跨轮继续引用。新增prepare_attachment/read_text_file/read_image；图片复用官方dsh-attachment-local完整解码、持久化，并以ImageBlock进入支持图片的模型。文本支持UTF-8/BOM UTF-16/GB18030、分页，不再仅内联提取TXT/MD。Flash图片预算按官方上限1024输入token/图预留、真实usage结算，5元/日不变；默认6次图片读取/轮，10MiB/单项、缓存256MiB/24小时。图片价格来源https://api-docs.deepseek.com/guides/vision/，非Flash未核对图片价格不放行。media本机和示例配置true，桥接本地配置media/download true，授权范围未扩展。77项测试通过，包含真实dsh内核+真实附件后端的图片工具往返和计费、真实本机HTTP媒体拉取、跨域/篡改/过期拒绝及退出取消。未调用真实付费模型、未发微信。细节agent/MEDIA_V2.md。**bot、桥接和Web仍保持关闭；真实媒体识别效果待显式启动后验收。**
 
 **2026-10-30 上下文/记忆 v2：** 用户已要求并完成代码改造：固定提示词独立额度；连续最近200条（含bot出站与微信回流去重）；独立会话按10分钟/100条、静默3分钟（至少10条）、低活跃30分钟整理分段摘要，150条积压优先；摘要通常400～700字，上限1000字，topics/entities/states/aliases四类标签。模型通过memory_search→memory_read→history_read按需检索，摘要不自动注入；最多12段、原文4批×20条、工具累计15秒、8000估算token与32KiB硬上限。原memory_units保留，启动时增量重建chat_history，不自动重放消息。文件和细节见agent/MEMORY_V2.md。67项测试通过，含真实固定版本dsh的三种记忆工具往返；上次真实数据只读快照回放重建84条（27条bot）、无重复无裁剪，旧断句配对均进入新上下文。回放未调用真实模型，未发微信，未改业务库。**bot、桥接和Web按用户要求保持关闭，不要自动启动。** 新摘要质量仍需真实群聊验收。
@@ -38,7 +42,7 @@
 | 常驻 HTTP 服务 | `bridge_service.py`：单进程、单令牌、有界发送队列、常驻发送/下载 worker、事件池、请求状态、进程/worker/轮询监控与重连 | 未做 10 分钟/1 小时长稳；外部联系人和群在常驻服务下未回归 |
 | 发送状态跟踪 | SQLite 请求状态机；本地消息库关联 `local_id`/`server_id`；失败/超时/重启分别落到 `failed`/`unknown`；`delivery_verified` 恒 false | 目标实际收件仍只能靠人工台账；媒体 `server_id` 可能晚于确认窗口 |
 | 媒体发送输入 | 可配置目录；PNG/JPEG/GIF/WebP → PNG；WAV/SILK/MP3 → 16 kHz 单声道；可选其他视频 → MP4；大小/路径/文件名/并发修改校验 | 设备侧只验证过 PNG/MP4/SILK 原生路径；转换后的媒体未做实机收件 |
-| 版本 profile | `versions/4.1.15.56.json` 固定 DLL/SHA/全部 RVA；未知或不匹配拒绝附加 | 新版本仍需重新逆向与逐项验证，禁止套用旧偏移 |
+| 版本 profile | 当前默认 `versions/4.2.0.13.json` 固定 DLL/SHA/全部 RVA；未知或不匹配拒绝附加；旧版显式 profile 留供复现 | 后续新版本仍需重新逆向与逐项验证，禁止套用旧偏移 |
 
 现有实机测试对象由用户明确选择：文件传输助手 `filehelper`、一个普通联系人、一个群。个人标识保存在 `runs/targets.local.json`（`runs/` 不进入版本控制）。收件人是从 HTTP 到原生 `+0xB0` 的显式参数，默认策略只允许 `filehelper`；其他目标必须通过 `WECHAT_BOT_RECIPIENTS` 显式加入。继续只读检查、修改代码、独立程序测试不需要重新确认；发送给其他人或群之前，需要用户提供具体测试目标并明确测试范围，不能自行挑选聊天对象。
 
@@ -51,7 +55,7 @@
 | [P5_TEST_RESULTS.json](E:/projects/wechat-bot/weixin-research/P5_TEST_RESULTS.json) | 请求状态、消息 ID、幂等与超时证据 |
 | [P6_TEST_RESULTS.json](E:/projects/wechat-bot/weixin-research/P6_TEST_RESULTS.json) | 常驻服务、持久 worker、事件池与恢复证据（含“未做长稳”） |
 | [P7_TEST_RESULTS.json](E:/projects/wechat-bot/weixin-research/P7_TEST_RESULTS.json) | 媒体输入、转换、版本 profile 与错误边界 |
-| [versions/4.1.15.56.json](E:/projects/wechat-bot/weixin-research/versions/4.1.15.56.json) | 唯一允许的 ABI profile；RVA 只对固定 SHA256 有效 |
+| [versions/4.2.0.13.json](E:/projects/wechat-bot/weixin-research/versions/4.2.0.13.json) | 当前默认 ABI profile；RVA 只对固定 SHA256 有效；后文旧版地址表仅为历史证据 |
 | [SEND_API.md](E:/projects/wechat-bot/weixin-research/SEND_API.md) | 旧的短时五类发送 API、RVA、ABI 和限制 |
 | [REPORT.md](E:/projects/wechat-bot/weixin-research/REPORT.md) | 研究和实机试验历史；以开头及最后的语音章节为最新状态 |
 | [LAYOUT.md](E:/projects/wechat-bot/weixin-research/LAYOUT.md) | 消息容器与对象布局证据 |

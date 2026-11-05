@@ -12,7 +12,6 @@ import { PromptRegistry } from '../src/prompts/registry.js';
 import { Memory } from '../src/memory/memory.js';
 import { Interactions } from '../src/interactions/registry.js';
 import { BridgeClient } from '../src/bridge/client.js';
-import { parseDecision } from '../src/participation/decision.js';
 import { config, event, now, FakeBridge, FakeHost } from './helpers.js';
 
 function fixture(c = config()) {
@@ -25,6 +24,25 @@ function fixture(c = config()) {
   return { store, bridge, host, engine, advance: (ms: number) => time += ms };
 }
 
+test('an explicit context reset blocks old bridge backlog and self echoes from restoring erased context', async () => {
+  const f = fixture();
+  try {
+    f.store.exec("INSERT INTO metadata VALUES('context_reset_at',?)", String(now));
+    f.store.ingest({ cursor: 3, truncated: false, events: [
+      event(1, 'group-a@chatroom', '已清空的旧群消息', { timestamp: now / 1000 - 1 }),
+      event(2, 'group-a@chatroom', '已清空的旧机器人回流', { direction: 'outgoing', sender: 'self', timestamp: now / 1000 - 1 }),
+      event(3, 'group-a@chatroom', '清空后的新消息', { timestamp: now / 1000 + 1 }),
+    ] });
+    assert.equal(f.store.one('SELECT count(*) n FROM chat_history')!.n, 1);
+    assert.equal(f.store.one('SELECT reason FROM inbox WHERE sequence=1')!.reason, 'before_context_reset');
+    assert.ok(!f.store.one('SELECT payload FROM inbox WHERE sequence=1')!.payload.includes('旧群消息'));
+    await f.engine.pump(); await f.engine.drain();
+    assert.equal(f.host.calls.length, 1);
+    assert.ok(!f.host.calls[0]!.context.includes('已清空'));
+    assert.match(f.host.calls[0]!.context, /清空后的新消息/);
+  } finally { await f.engine.close(); }
+});
+
 test('native database bridge Chinese text reaches reply execution', async () => {
   const f = fixture();
   f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'contact-a', '/ai 你好', {
@@ -36,6 +54,20 @@ test('native database bridge Chinese text reaches reply execution', async () => 
   const runtime = JSON.parse(f.store.one("SELECT value FROM metadata WHERE key='runtime_status'")!.value);
   assert.equal(runtime.pid, process.pid); assert.equal(runtime.owner, f.store.owner); assert.equal(runtime.state, 'running');
   await f.engine.close();
+});
+
+test('direct chats trigger without a prefix by default; explicit prefix mode remains available', async () => {
+  for (const trigger of ['all', 'prefix'] as const) {
+    const c = trigger === 'all' ? config() : config({ access: { direct: { allow: ['contact-a'], trigger }, group: { allow: [] } } });
+    assert.equal(c.access.direct.trigger, trigger);
+    const f = fixture(c);
+    try {
+      f.store.ingest({ cursor: 1, truncated: false, events: [event(1, 'contact-a', '你好')] });
+      await f.engine.pump(); await f.engine.drain();
+      assert.equal(f.host.calls.length, trigger === 'all' ? 1 : 0);
+      if (trigger === 'all') assert.equal(f.host.calls[0]!.purpose, 'reply');
+    } finally { await f.engine.close(); }
+  }
 });
 
 test('native database media labels normalize while cards remain unsupported', () => {
@@ -96,27 +128,16 @@ test('autonomous group batches require no mention or prefix and share one sessio
   const f = fixture(); f.bridge.page = { cursor: 2, truncated: false, events: [event(1, 'group-a@chatroom', '这个问题怎么处理？'),
     event(2, 'group-a@chatroom', '我也想了解', { sender: 'member-b' })] };
   await f.engine.tick(); await f.engine.drain();
-  assert.deepEqual(f.host.calls.map(c => c.purpose), ['decision', 'reply']);
+  assert.deepEqual(f.host.calls.map(c => c.purpose), ['reply']);
   assert.equal(f.store.one('SELECT count(*) n FROM session_map')!.n, 1);
-  const input = f.host.calls[1]!; assert.match(input.context, /member-a/); assert.match(input.context, /member-b/);
-  await f.engine.tick(); await f.engine.drain(); assert.equal(f.host.calls.length, 2); await f.engine.close();
+  const input = f.host.calls[0]!; assert.match(input.context, /member-a/); assert.match(input.context, /member-b/);
+  await f.engine.tick(); await f.engine.drain(); assert.equal(f.host.calls.length, 1); await f.engine.close();
 });
 test('group silence and natural quiet requests never produce placeholder messages', async () => {
   const f = fixture(); f.host.action = 'silent'; f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '随便聊聊')] };
   await f.engine.tick(); await f.engine.drain(); assert.equal(f.store.one('SELECT count(*) n FROM outbox')!.n, 0);
   f.host.action = 'reply'; f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '先别说话')] };
   await f.engine.tick(); await f.engine.drain(); assert.equal(f.host.calls.length, 1); await f.engine.close();
-});
-test('new answer during generation suppresses delivery but retains the completed draft after recheck', async () => {
-  const f = fixture(); f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
-  f.host.hook = async input => { if (input.purpose === 'reply') {
-    f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '问题已解决', { sender: 'member-b' })] }); f.host.action = 'silent';
-  } };
-  await f.engine.tick(); await f.engine.drain();
-  assert.equal(f.store.one('SELECT state FROM outbox')!.state, 'cancelled');
-  const run = f.store.one("SELECT state,result FROM runs WHERE purpose='reply'")!;
-  assert.equal(run.state, 'completed'); assert.ok(JSON.parse(run.result).replies.length);
-  assert.equal(f.host.calls.length, 3); await f.engine.close();
 });
 
 test('a follow-up during generation can approve the answer using the new message ID', async () => {
@@ -140,42 +161,7 @@ test('two groups and one direct chat never share session IDs, contexts or reply 
   assert.ok(replies.every(c => ['甲', '乙', '丙'].filter(s => c.context.includes(s)).length === 1)); await f.engine.close();
 });
 
-test('queued group reply survives a follow-up and changed topic label after semantic review', async () => {
-  const f = fixture();
-  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
-  await f.engine.tick(); await f.engine.drain();
-  const original = f.store.one('SELECT id FROM outbox')!.id;
-  const execute = f.host.execute.bind(f.host);
-  f.host.execute = async (input, signal) => {
-    const result = await execute(input, signal);
-    if (input.purpose === 'decision' && JSON.parse(input.context).stage === 'before_send') {
-      const decision = JSON.parse(result.replies[0]!.text);
-      decision.topicId = 'same-conversation-with-a-new-label';
-      result.replies[0]!.text = JSON.stringify(decision);
-    }
-    return result;
-  };
-  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '再解释一下细节')] };
-  await f.engine.tick(); await f.engine.drain();
-  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', original)!.state, 'server_confirmed');
-  assert.ok(f.bridge.posts.some(body => JSON.parse(body).request_id === original));
-  assert.ok(f.host.calls.some(call => call.purpose === 'decision' && JSON.parse(call.context).stage === 'before_send'));
-  await f.engine.close();
-});
 
-test('queued group reply is cancelled only when semantic review says silent', async () => {
-  const f = fixture();
-  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
-  await f.engine.tick(); await f.engine.drain();
-  const original = f.store.one('SELECT id FROM outbox')!.id;
-  f.host.action = 'silent';
-  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '已经解决，不用回复')] };
-  await f.engine.tick(); await f.engine.drain();
-  const row = f.store.one('SELECT state,result FROM outbox WHERE id=?', original)!;
-  assert.equal(row.state, 'cancelled'); assert.equal(JSON.parse(row.result).reason, 'participation_superseded');
-  assert.equal(f.bridge.posts.length, 0);
-  await f.engine.close();
-});
 
 test('outgoing group echo does not cancel a queued answer or trigger a review', async () => {
   const f = fixture();
@@ -185,65 +171,11 @@ test('outgoing group echo does not cancel a queued answer or trigger a review', 
   f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '上一条回声', { sender: 'self', direction: 'outgoing' })] };
   await f.engine.tick();
   assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', original)!.state, 'server_confirmed');
-  assert.equal(f.host.calls.filter(call => call.purpose === 'decision').length, 1);
+  assert.equal(f.host.calls.filter(call => call.purpose === 'decision').length, 0);
   await f.engine.close();
 });
 
-test('unavailable queued review preserves the answer and does not create a permanent group review block', async () => {
-  const f = fixture();
-  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '如何做？')] };
-  await f.engine.tick(); await f.engine.drain();
-  const original = f.store.one('SELECT id FROM outbox')!.id;
-  f.host.hook = async input => { if (input.purpose === 'decision') throw Error('offline'); };
-  f.bridge.page = { cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '补充细节')] };
-  await f.engine.tick(); await f.engine.drain();
-  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', original)!.state, 'prepared');
-  assert.equal(f.bridge.posts.length, 0);
-  assert.equal(f.store.one("SELECT count(*) n FROM runs WHERE purpose='decision' AND state='needs_review'")!.n, 0);
-  await f.engine.close();
-});
-test('wait during generation retains a draft and the next input revises it without duplicate delivery', async () => {
-  const f = fixture();
-  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '请分析两种方案')] };
-  let injected = false;
-  f.host.hook = async input => {
-    if (input.purpose === 'reply' && !injected) {
-      injected = true;
-      f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '只看第二种')] });
-      f.host.action = 'wait';
-    }
-  };
-  await f.engine.tick(); await f.engine.drain();
-  const old = f.store.one('SELECT * FROM outbox')!;
-  assert.equal(old.state, 'prepared');
-  assert.equal(f.store.one('SELECT state FROM reply_reviews')!.state, 'wait');
-  f.bridge.page = { cursor: 2, events: [], truncated: false };
-  f.host.action = 'reply'; f.store.exec('UPDATE session_map SET last_reply=0'); f.advance(1000);
-  await f.engine.tick(); await f.engine.drain();
-  const replies = f.host.calls.filter(c => c.purpose === 'reply');
-  assert.equal(replies.length, 2);
-  assert.ok(JSON.parse(replies[1]!.context).previousWork.some((w: any) => w.draft));
-  assert.equal(f.store.one('SELECT state FROM outbox WHERE id=?', old.id)!.state, 'cancelled');
-  assert.equal(f.bridge.posts.length, 0);
-  await f.engine.tick();
-  assert.equal(f.bridge.posts.length, 1);
-  await f.engine.close();
-});
 
-test('messages arriving during final review retain rather than cancel completed work', async () => {
-  const f = fixture();
-  f.bridge.page = { cursor: 1, truncated: false, events: [event(1, 'group-a@chatroom', '查一下这个问题')] };
-  f.host.hook = async input => {
-    if (input.purpose === 'reply') f.store.ingest({ cursor: 2, truncated: false, events: [event(2, 'group-a@chatroom', '补充一条')] });
-    if (input.purpose === 'decision' && JSON.parse(input.context).stage === 'before_send')
-      f.store.ingest({ cursor: 3, truncated: false, events: [event(3, 'group-a@chatroom', '再补充一条')] });
-  };
-  await f.engine.tick(); await f.engine.drain();
-  assert.equal(f.store.one("SELECT state FROM runs WHERE purpose='reply'")!.state, 'completed');
-  assert.equal(f.store.one('SELECT state FROM outbox')!.state, 'prepared');
-  assert.equal(f.store.one('SELECT state FROM reply_reviews')!.state, 'wait');
-  await f.engine.close();
-});
 
 test('UTF-8 chunks preserve complete graphemes and stable request IDs', () => {
   const text = '中文👨‍👩‍👧‍👦e\u0301🇨🇳\n'.repeat(200);
@@ -301,7 +233,7 @@ test('expired unprojected group review stops blocking fresh group participation 
   await f.engine.pump(); await f.engine.drain();
   assert.equal(f.store.one("SELECT state FROM runs WHERE id='old-group'")!.state, 'cancelled');
   assert.equal(f.store.one('SELECT state FROM inbox WHERE id=?', source)!.state, 'cancelled');
-  assert.ok(f.host.calls.some(call => call.purpose === 'decision'));
+  assert.ok(f.host.calls.some(call => call.purpose === 'reply'));
   assert.ok(f.host.calls.every(call => call.inputId !== 'old-group'));
   assert.equal(f.bridge.posts.length, 0);
   await f.engine.close();
@@ -362,10 +294,6 @@ test('interaction answer binds sender, scope, generation, expiry and single sett
   assert.equal(registry.settle({ ...s, generation: 2 }, 'member-a', id, 'allow', 'approval'), false);
   assert.equal(registry.settle(s, 'member-a', id, 'allow', 'approval'), true);
   assert.equal(registry.settle(s, 'member-a', id, 'allow', 'approval'), false); f.store.close();
-});
-test('model decisions cannot inject arbitrary recipients or sources', () => {
-  const m = normalize(event(1, 'group-a@chatroom'), config())!;
-  assert.throws(() => parseDecision(JSON.stringify({ action: 'reply', reason: 'test', sourceMessageIds: ['outside'], topicId: 'x', replyToSenderId: m.senderId }), [m]));
 });
 test('bridge discovery rejects remote hosts, URL credentials and redirects', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'wechat-client-'));

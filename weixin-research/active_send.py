@@ -16,7 +16,7 @@ from pe_image import PEImage
 from policy import SendPolicy, PolicyError
 from profile import (ROOT, DLL, SHA256, SEND_FUNCTIONS, EMOJI_VTABLE, VERSION,
                      LOCAL_EMOJI_CONTROL, LOCAL_EMOJI_RESOURCE,
-                     make_config)
+                     make_config, layout_definitions, NATIVE_LAYOUT)
 from probe import Journal, render_source, run_probe
 
 
@@ -65,7 +65,7 @@ def config_for(kind, text=None, path=None, recipient='filehelper', seconds=15, p
                    text=text if kind == 'text' else None, text_bytes=list(text_bytes),
                    limits=policy.describe(),
                    helper_source=(ROOT / 'active_send.c').read_text(encoding='utf-8'),
-                   thread_source=(ROOT / 'app_thread_send.c').read_text(encoding='utf-8'),
+                   thread_source=layout_definitions() + (ROOT / 'app_thread_send.c').read_text(encoding='utf-8'),
                    on_app_thread=True, functions=[])
     if kind in ('image', 'file', 'video', 'voice'):
         from media_input import prepare_media
@@ -150,7 +150,7 @@ WORKER_FUNCTIONS = dict(SEND_FUNCTIONS)
 def local_emoji_fingerprints(image):
     return [dict(rva=table, pointer_rvas=[address-image.image_base for address in
             struct.unpack('<'+'Q'*count, image.read_rva(table, count*8))])
-            for table, count in ((LOCAL_EMOJI_CONTROL, 3), (LOCAL_EMOJI_RESOURCE, 17))]
+            for table, count in ((LOCAL_EMOJI_CONTROL, 3), (LOCAL_EMOJI_RESOURCE, int(NATIVE_LAYOUT.get('local_emoji_vtable_entries', 17))))]
 
 
 def worker_config(policy=None, seconds=60):
@@ -169,7 +169,7 @@ def worker_config(policy=None, seconds=60):
                    recipient_bytes=[ord(c) for c in 'filehelper'],
                    text=None, text_bytes=[], limits=policy.describe(),
                    helper_source=(ROOT / 'active_send.c').read_text(encoding='utf-8'),
-                   thread_source=('#define ENABLE_LOCAL_EMOJI 1\n' if local_available else '') + '#define ENABLE_EMOJI 1\n' +
+                   thread_source=layout_definitions() + ('#define ENABLE_LOCAL_EMOJI 1\n' if local_available else '') + '#define ENABLE_EMOJI 1\n' +
                                  (ROOT / 'app_thread_send.c').read_text(encoding='utf-8'),
                    on_app_thread=True, functions=[], local_emoji=local_available,
                    local_emoji_control_vtable=LOCAL_EMOJI_CONTROL,

@@ -16,6 +16,14 @@ EMOJI_VTABLE = PROFILE['emoji']['control_vtable']
 LOCAL_EMOJI_CONTROL = PROFILE['emoji'].get('local_control_vtable')
 LOCAL_EMOJI_RESOURCE = PROFILE['emoji'].get('local_resource_vtable')
 DOWNLOAD_RESULT_VTABLE = PROFILE['download_result_vtable']
+NATIVE_LAYOUT = PROFILE.get('layout', {})
+
+
+def layout_definitions():
+    allocation = int(NATIVE_LAYOUT.get('emoji_resource_allocation', 0x1f0))
+    if not 0x1f0 <= allocation <= 0x1000:
+        raise ValueError('invalid pinned emoji resource allocation')
+    return '#define EMOJI_RESOURCE_ALLOCATION %d\n' % allocation
 
 
 def make_config(site=None, seconds=10, dll=DLL, resident=False, quiet=False):

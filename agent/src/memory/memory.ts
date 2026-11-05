@@ -49,26 +49,16 @@ export class Memory {
   pending(session: Session): HistoryItem[] {
     const position = Number(this.store.one('SELECT position FROM summary_checkpoints WHERE route=?', session.key)?.position ?? 0);
     return this.store.all('SELECT position,payload FROM chat_history WHERE route=? AND position>? ORDER BY position LIMIT ?',
-      session.key, position, this.store.config.memory.batchMessages)
+      session.key, position, 100)
       .map(r => ({ position: Number(r.position), message: JSON.parse(r.payload) as Message }));
   }
   backlog(route: string) {
     return Number(this.store.one(`SELECT count(*) n FROM chat_history WHERE route=? AND position>coalesce(
       (SELECT position FROM summary_checkpoints WHERE route=?),0)`, route, route)!.n);
   }
-  due(session: Session) {
-    if (!this.store.config.memory.enabled) return false;
-    const batch = this.pending(session); if (!batch.length) return false;
-    const c = this.store.config.memory, now = this.store.clock(), count = this.backlog(session.key);
-    const cp = this.store.one('SELECT completed FROM summary_checkpoints WHERE route=?', session.key);
-    const latest = this.store.timeline(session.key, 1)[0]!;
-    const elapsed = now - Number(cp?.completed ?? batch[0]!.message.timestampMs);
-    return count >= c.batchMessages || elapsed >= c.lowTrafficSeconds * 1000 ||
-      count >= c.minMessages && (elapsed >= c.intervalSeconds * 1000 || now - latest.message.timestampMs >= c.idleSeconds * 1000);
-  }
   commitSummary(session: Session, batch: HistoryItem[], text: string, version: string) {
     const parsed = summarySchema.parse(JSON.parse(text));
-    if ([...parsed.summary].length > this.store.config.memory.summaryMaxChars) throw Error('summary_too_long');
+    if ([...parsed.summary].length > 1000) throw Error('summary_too_long');
     if (!batch.length) throw Error('summary_empty_batch');
     const expected = this.pending(session).slice(0, batch.length);
     if (expected.length !== batch.length || expected.some((b, i) => b.position !== batch[i]!.position ||
@@ -95,30 +85,6 @@ export class Memory {
       this.store.exec('DELETE FROM metadata WHERE key=?', 'summary_retry:' + session.key);
     });
     return id;
-  }
-  recent(session: Session, byteBudget: number) {
-    const timeline = this.store.timeline(session.key, this.store.config.runtime.recentMessages);
-    const now = this.store.clock();
-    const all = timeline.map((b, index) => {
-      const ageSeconds = Math.max(0, Math.floor((now - b.message.timestampMs) / 1000));
-      return { ...this.source(b.message), ageSeconds,
-        gapSeconds: index ? Math.max(0, Math.floor((b.message.timestampMs - timeline[index - 1]!.message.timestampMs) / 1000)) : 0,
-        recencyWeight: Math.max(0.01, Math.round(2 ** (-ageSeconds / 300) * 100) / 100) };
-    });
-    const selected: (typeof all[number] & { truncated?: boolean })[] = []; let used = 2;
-    // Contiguous newest suffix; don't fill holes with unrelated older short messages.
-    for (const item of [...all].reverse()) {
-      if (Buffer.byteLength(JSON.stringify(item)) + used + 1 > byteBudget) {
-        const available = Math.max(0, byteBudget - used - Buffer.byteLength(JSON.stringify({ ...item, text: '' })) - 128);
-        let text = '', size = 0;
-        for (const ch of item.text) { size += Buffer.byteLength(JSON.stringify(ch)) - 2; if (size > available) break; text += ch; }
-        if (text) selected.push({ ...item, text, truncated: true });
-        break;
-      }
-      selected.push(item); used += Buffer.byteLength(JSON.stringify(item)) + 1;
-    }
-    return { recent: selected.reverse(), availableMessages: all.length, includedMessages: selected.length,
-      truncated: selected.length < all.length || selected.some(s => s.truncated) };
   }
   reader(session: Session, auditId: string) { return new MemoryReader(this, session, auditId); }
 }
@@ -175,13 +141,13 @@ export class MemoryReader {
     const cursor = before ?? Number.MAX_SAFE_INTEGER, key = JSON.stringify([terms, cursor]);
     if (this.visited.has(key)) return this.output({ stopped: 'repeated_search', matches: [] });
     this.visited.add(key);
-    const clause = terms.length ? ' AND (' + terms.map(() => '(instr(lower(title),lower(?))>0 OR instr(lower(tags),lower(?))>0)').join(' OR ') + ')' : '';
+    const clause = terms.length ? ' AND (' + terms.map(() => '(instr(lower(title),lower(?))>0 OR instr(lower(tags),lower(?))>0 OR instr(lower(summary),lower(?))>0)').join(' OR ') + ')' : '';
     const anchor = before === undefined ? undefined : this.memory.store.one('SELECT end_time,end_position FROM memory_segments WHERE route=? AND end_position=?', this.session.key, before);
     if (before !== undefined && !anchor) throw Error('memory_cursor_denied');
     const boundary = anchor ? ' AND (end_time<? OR (end_time=? AND end_position<?))' : '';
     const anchorArgs = anchor ? [anchor.end_time, anchor.end_time, anchor.end_position] : [];
     const rows = this.memory.store.all('SELECT * FROM memory_segments WHERE route=?' + boundary + clause +
-      ' ORDER BY end_time DESC,end_position DESC LIMIT ?', this.session.key, ...anchorArgs, ...terms.flatMap(t => [t, t]), this.c.pageSize + 1);
+      ' ORDER BY end_time DESC,end_position DESC LIMIT ?', this.session.key, ...anchorArgs, ...terms.flatMap(t => [t, t, t]), this.c.pageSize + 1);
     const page = rows.slice(0, this.c.pageSize);
     for (const row of page) this.allowed.set(row.id, row);
     return this.output({ matches: page.map(r => ({ id: r.id, title: r.title, tags: JSON.parse(r.tags),

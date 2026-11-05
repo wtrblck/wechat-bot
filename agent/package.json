@@ -25,6 +25,7 @@
     "diagnose": "node dist/src/cli.js diagnose",
     "budget": "node dist/src/cli.js budget",
     "admin": "node dist/src/admin-cli.js",
+    "codex": "node dist/src/codex-cli.js",
     "preview": "node dist/src/cli.js preview"
   },
   "dependencies": {

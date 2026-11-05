@@ -1,3 +1,4 @@
+import { conversationEnabled } from '../access.js';
 import type { Config } from '../config.js';
 import type { Message } from '../contracts.js';
 
@@ -22,7 +23,7 @@ export function normalize(raw: Record<string, unknown>, c: Config): Message | un
     mediaRef: typeof media?.id === 'string' ? media.id : undefined };
 }
 export function ignoreReason(m: Message, c: Config, now: number): string | null {
-  if (!(m.scope === 'group' ? c.access.group.allow : c.access.direct.allow).includes(m.conversationId)) return 'conversation_not_allowed';
+  if (!conversationEnabled(c, m.conversationId)) return 'conversation_not_allowed';
   if (m.senderId === c.account.selfId || m.direction === 'outgoing') return 'self_echo';
   if (m.direction !== 'incoming') return 'unknown_direction';
   if (m.kind === 'unsupported') return 'unsupported_type';

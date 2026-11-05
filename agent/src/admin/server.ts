@@ -6,6 +6,7 @@ import { StickerLibrary } from '../media/stickers.js';
 import { AdminReadModel, safeText } from './read-model.js';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { ServiceControl, ServiceAction } from './service-control.js';
+import { accessUpdate, saveConversationAccess } from '../access.js';
 
 export function createAdminServer(config: Config, options: { staticRoot: string; clock?: () => number; services?: ServiceControl; shutdown?: () => void } ) {
   const model = new AdminReadModel(config, options.clock);
@@ -32,6 +33,22 @@ export function createAdminServer(config: Config, options: { staticRoot: string;
       const decoded = decodeURIComponent(raw.split('?')[0]!);
       if (decoded.includes('\\') || decoded.split('/').some(s=>s==='..'||s==='.') || /[\x00-\x1f]/.test(decoded)) return json(res,400,{error:'path_denied'});
       const url = new URL(raw,origin), path = url.pathname;
+      if (path === '/api/access' && req.method === 'GET') return json(res, 200, { ...model.access(), token: serviceToken });
+      if (path === '/api/access' && req.method === 'POST') {
+        const supplied = req.headers['x-service-token'];
+        if (req.headers.origin !== origin || typeof supplied !== 'string' || !/^[a-f0-9]{64}$/.test(supplied) ||
+            !timingSafeEqual(Buffer.from(supplied), Buffer.from(serviceToken))) return json(res, 403, { error: 'access_control_denied' });
+        if (req.headers['content-type'] !== 'application/json') return json(res, 415, { error: 'json_required' });
+        if (Number(req.headers['content-length'] ?? 0) > 2048) { req.resume(); return json(res, 413, { error: 'body_too_large' }); }
+        const chunks: Buffer[] = []; let size = 0;
+        for await (const chunk of req) { size += chunk.length; if (size > 2048) return json(res, 413, { error: 'body_too_large' }); chunks.push(chunk); }
+        const body = Buffer.concat(chunks).toString('utf8');
+        let value;
+        try { value = accessUpdate.safeParse(JSON.parse(body)); } catch { return json(res, 400, { error: 'invalid_access_policy' }); }
+        if (!value.success || value.data.conversation === config.account.selfId || value.data.files === 'approval' && !config.externalAccess.enabled)
+          return json(res, 400, { error: 'invalid_access_policy' });
+        return json(res, 200, { saved: saveConversationAccess(config, value.data) });
+      }
       if (path === '/api/services' && req.method === 'GET') {
         return json(res, 200, { ...(options.services ? await options.services.status() : { enabled: false }), shutdownEnabled: !!options.shutdown, token: serviceToken });
       }

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Config } from '../config.js';
 import { budgetStatus } from '../budget/daily-budget.js';
+import { accessEntries, conversationAccess } from '../access.js';
 
 type Row = Record<string, any>;
 export const parse = (text: unknown): any => { try { return typeof text === 'string' ? JSON.parse(text) : {}; } catch { return {}; } };
@@ -40,6 +41,14 @@ export class AdminReadModel {
   all(sql: string, ...args: SQLInputValue[]): Row[] { return this.connect()?.prepare(sql).all(...args) ?? []; }
   one(sql: string, ...args: SQLInputValue[]): Row | undefined { return this.connect()?.prepare(sql).get(...args); }
   close() { this.db?.close(); this.db = undefined; }
+  access() {
+    const ids = new Set([...this.config.access.direct.allow, ...this.config.access.group.allow, ...Object.keys(accessEntries(this.config))]);
+    if (this.has('inbox')) for (const row of this.all('SELECT DISTINCT conversation FROM inbox WHERE conversation IS NOT NULL')) ids.add(row.conversation);
+    if (this.has('session_map')) for (const row of this.all('SELECT DISTINCT conversation FROM session_map')) ids.add(row.conversation);
+    return { approvalEnabled: this.config.externalAccess.enabled, items: [...ids].filter(id => id && id !== this.config.account.selfId).sort().map(conversation => ({
+      conversation, scope: conversation.endsWith('@chatroom') ? 'group' : 'direct', ...conversationAccess(this.config, conversation),
+    })) };
+  }
   overview() {
     const now = this.clock(), metadata = this.has('metadata');
     const status = metadata ? parse(this.one("SELECT value FROM metadata WHERE key='runtime_status'")?.value) : {};
@@ -109,7 +118,7 @@ export class AdminReadModel {
     const status = trace ? `CASE WHEN NOT EXISTS(SELECT 1 FROM trace_inbox t WHERE t.id=i.id) THEN 'legacy_unknown' ELSE coalesce(
       (SELECT o.state FROM outbox o WHERE ${outputWhere} ORDER BY CASE o.state
         WHEN 'needs_review' THEN 1 WHEN 'unknown' THEN 2 WHEN 'failed' THEN 3 WHEN 'sending' THEN 4 WHEN 'queued' THEN 5 WHEN 'prepared' THEN 6 WHEN 'local_accepted' THEN 7 WHEN 'message_recorded' THEN 8 WHEN 'cancelled' THEN 9 ELSE 10 END LIMIT 1),
-      CASE WHEN i.state IN ('pending','observed') THEN (SELECT e.state FROM trace_events e WHERE e.inbox_id=i.id AND e.phase='participation' ORDER BY e.id DESC LIMIT 1) END,
+      CASE WHEN i.state IN ('pending','observed','completed') THEN (SELECT CASE WHEN e.state IN ('waiting','silent') THEN e.state END FROM trace_events e WHERE e.inbox_id=i.id AND e.phase='participation' ORDER BY e.id DESC LIMIT 1) END,
       CASE i.state WHEN 'pending' THEN 'received' WHEN 'dispatching' THEN 'processing' WHEN 'control_running' THEN 'processing' WHEN 'observed' THEN 'silent' ELSE i.state END) END` : `'legacy_unknown'`;
     return `SELECT i.*,${status} display_status,${trace ? `(SELECT json_extract(e.details,'$.reason') FROM trace_events e WHERE e.inbox_id=i.id AND e.phase='participation' ORDER BY e.id DESC LIMIT 1)` : 'NULL'} trace_reason,${trace ? `EXISTS(SELECT 1 FROM trace_inbox t WHERE t.id=i.id)` : '0'} traced,
       ${trace ? `(SELECT count(*) FROM trace_sources s WHERE s.inbox_id=i.id)` : '0'} run_count,

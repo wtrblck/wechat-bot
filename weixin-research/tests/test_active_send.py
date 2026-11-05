@@ -103,7 +103,7 @@ class ActiveSendValidationTest(unittest.TestCase):
     def test_function_manifest_includes_general_assignment(self):
         config = active_send.config_for('text', text='hello', policy=self.policy)
         names = {item['name']: item['rva'] for item in config['active_experiment']['functions']}
-        self.assertEqual(names['narrow_assign'], 0x1F9AD0)
+        self.assertEqual(names['narrow_assign'], 0x1FE140)
         self.assertEqual(names['wide_assign'], 0x9B5E0)
 
 

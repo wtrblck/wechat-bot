@@ -95,18 +95,18 @@ test('real dsh can update only global persona/style and the next snapshot hot lo
     store.ingest({ cursor: 0, events: [], truncated: false });
     const session = store.session(normalize(event(1), c)!);
     const before = engine.prompts.snapshot(session, 'reply', store);
-    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', replyFormat: 'messages-v1',
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', replyFormat: 'lines-v1',
       system: before.system, context: '{}', provider: 'mock', model: 'test' };
     store.startRun(input, []);
     host.adapter.channelTools = (i, signal) => channelTools(engine, i, signal);
     host.model.toolPlan = [{ name: 'read_self_profile', args: {} }, { name: 'update_self_profile', args: {
       expectedVersion: 'base', persona: '你叫海月，温和机灵。', responseStyle: '自然简洁，认真解释时保留细节。', reason: '用户调整角色' } }];
-    host.model.answer = '{"messages":["已保存，下轮生效。"]}';
+    host.model.answer = '已保存，下一段会话生效。';
     const result = await host.adapter.execute(input, new AbortController().signal);
     assert.equal(result.status, 'completed');
     const next = engine.prompts.snapshot(session, 'reply', store);
     assert.ok(next.system.includes('你叫海月'));
-    assert.ok(next.system.includes('不能修改或覆盖系统约束'));
+    assert.ok(next.system.includes('不改变身份、权限或发送目标'));
     assert.ok(!input.system.includes('你叫海月'));
     assert.equal(store.one("SELECT state FROM work_results WHERE name='update_self_profile'")!.state, 'completed');
   } finally { await engine.close(); await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
@@ -122,11 +122,11 @@ test('real dsh announces long work through the bridge before invoking the next t
   try {
     store.ingest({ cursor: 0, events: [], truncated: false });
     const session = store.session(normalize(event(1), c)!);
-    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', replyFormat: 'messages-v1',
+    const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), session, purpose: 'reply', replyFormat: 'lines-v1',
       system: '先预告再工作。', context: '{}', provider: 'mock', model: 'test' };
     store.startRun(input, []);
     host.model.toolPlan = [{ name: 'announce_work', args: { text: '我先整理一下资料。' } }, { name: 'long_work', args: {} }];
-    host.model.answer = '{"messages":["整理好了，这是结论。"]}';
+    host.model.answer = '整理好了，这是结论。';
     let worked = false;
     host.adapter.channelTools = (i, signal) => [...channelTools(engine, i, signal), {
       name: 'long_work', description: '离线耗时工作替身', parameters: { type: 'object', properties: {} },
@@ -146,9 +146,9 @@ test('real dsh announces long work through the bridge before invoking the next t
 
 test('real dsh proactive care has no tools and supports skipping with an empty message array', async () => {
   const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-care-')), host = await kernel(root);
-  host.model.answer = '{"messages":[]}';
+  host.model.answer = '[SILENT]';
   host.adapter.channelTools = () => { throw Error('proactive_must_not_register_tools'); };
-  const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), proactive: true, purpose: 'reply', replyFormat: 'messages-v1',
+  const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), proactive: true, purpose: 'reply', replyFormat: 'lines-v1',
     system: '不合适时返回空messages。', context: '最近问过这件事，跳过。', provider: 'mock', model: 'test',
     session: { key: 'care-' + randomUUID(), id: randomUUID(), generation: 1, scope: 'direct', conversation: 'contact-a', model: 'default', persona: null } };
   try {
@@ -160,29 +160,36 @@ test('real dsh proactive care has no tools and supports skipping with an empty m
   } finally { await host.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
 });
 
-test('real dsh final multi-message envelope survives cold replay and leaves legacy/decision/memory outputs unchanged', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-messages-')), first = await kernel(root);
-  const envelope = JSON.stringify({ messages: ['孩子们，在呢。', '有什么事？'] });
-  first.model.answer = envelope;
-  const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), purpose: 'reply', replyFormat: 'messages-v1',
-    system: '', context: '测试多条', provider: 'mock', model: 'test',
-    session: { key: 'multi-' + randomUUID(), id: randomUUID(), generation: 1, scope: 'direct', conversation: 'contact-a', model: 'default', persona: null } };
+test('real dsh resumes one conversation, meters each new input once, and reconciles the correct historical turn', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'wechat-dsh-persistent-')), first = await kernel(root);
+  const input: HostInput = { inputId: randomUUID(), executionId: randomUUID(), purpose: 'reply', replyFormat: 'lines-v1',
+    system: '固定初始规则', context: '第一批独有消息', provider: 'mock', model: 'test',
+    session: { key: 'multi-' + randomUUID(), id: randomUUID(), generation: 1, scope: 'group', conversation: 'group-a@chatroom', model: 'default', persona: null } };
   try {
-    const result = await first.adapter.execute(input, new AbortController().signal);
-    assert.deepEqual(result.replies[0]!.messages, ['孩子们，在呢。', '有什么事？']);
-    assert.equal(result.replies[0]!.text, '孩子们，在呢。\n\n有什么事？');
+    first.model.answer = '第一条\n第二条';
+    first.model.usage = { inputTokens: 20, outputTokens: 10, cacheReadTokens: 100 };
+    const original = await first.adapter.execute(input, new AbortController().signal);
+    assert.deepEqual(original.replies[0]!.messages, ['第一条', '第二条']);
+    assert.equal(original.contextUsage?.inputTokens, 120);
+    first.model.answer = '[SILENT]';
+    const second = { ...input, inputId: randomUUID(), context: '第二批独有消息' };
+    const silent = await first.adapter.execute(second, new AbortController().signal);
+    assert.deepEqual(silent.replies, []);
+    assert.equal(first.model.calls.length, 2);
+    assert.match(JSON.stringify(first.model.calls[1]!.messages), /第一批独有消息/);
+    assert.match(JSON.stringify(first.model.calls[1]!.messages), /第二批独有消息/);
+    assert.deepEqual(await first.adapter.reconcile(input), original);
     await first.ctx.fiber.dispose();
-    const second = await kernel(root);
+    const cold = await kernel(root);
     try {
-      assert.deepEqual(await second.adapter.execute(input, new AbortController().signal), result);
-      assert.equal(second.model.calls.length, 0);
-      second.model.answer = envelope;
-      for (const purpose of ['reply', 'decision', 'memory'] as const) {
-        const legacy = { ...input, inputId: randomUUID(), executionId: randomUUID(), purpose, replyFormat: undefined };
-        const output = await second.adapter.execute(legacy, new AbortController().signal);
-        assert.equal(output.replies[0]!.text, envelope); assert.equal(output.replies[0]!.messages, undefined);
-      }
-    } finally { await second.ctx.fiber.dispose(); }
+      assert.deepEqual(await cold.adapter.execute(input, new AbortController().signal), original);
+      assert.equal(cold.model.calls.length, 0);
+      await cold.adapter.execute({ ...input, inputId: randomUUID(), context: '第三批独有消息' }, new AbortController().signal);
+      assert.equal(cold.model.calls.length, 1);
+      const wire = JSON.stringify(cold.model.calls[0]!.messages);
+      for (const marker of ['第一批独有消息', '第二批独有消息', '第三批独有消息']) assert.match(wire, new RegExp(marker));
+      assert.equal(cold.model.calls[0]!.messages.filter(m => m.role === 'system').length, 1);
+    } finally { await cold.ctx.fiber.dispose(); }
   } finally { await first.ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -476,7 +483,7 @@ test('memory uses the exact-route lowest declared effort and 4096 output tokens,
       host.model.truncated = true;
       const truncated = { ...input, inputId: randomUUID(), executionId: randomUUID() };
       const result = await host.adapter.execute(truncated, new AbortController().signal);
-      assert.deepEqual(result, { status: 'failed', replies: [], failureCode: 'MAX_TOKENS' });
+      assert.deepEqual(result, { status: 'failed', replies: [], contextUsage: { inputTokens: 20, outputTokens: 10 }, failureCode: 'MAX_TOKENS' });
       assert.ok(JSON.stringify(traces).includes('MAX_TOKENS'));
       const calls = host.model.calls.length;
       assert.deepEqual(await host.adapter.reconcile(truncated), result); assert.equal(host.model.calls.length, calls);
